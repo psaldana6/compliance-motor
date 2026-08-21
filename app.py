@@ -8,7 +8,7 @@ from database import (
     guardar_ejecucion, obtener_alertas_listas, obtener_alertas_smurfing,
     obtener_historial, obtener_resumen
 )
-from fuentes_sanciones import cargar_lista_onu, cargar_lista_uk
+from fuentes_sanciones import cargar_lista_onu, cargar_lista_uk, cargar_lista_eu, buscar_interpol_red_notices
 from noticias_adversas import analizar_riesgo_reputacional
 from verificacion_rut import verificar_rut
 
@@ -23,6 +23,18 @@ PORCENTAJE_UMBRAL = 0.85
 inicializar_db()
 
 st.title("🛡️ Motor de Compliance - Monitoreo Integral")
+
+with st.expander("ℹ️ Marco normativo cubierto por cada módulo"):
+    st.markdown("""
+    | Módulo | Obligación / referencia normativa |
+    |---|---|
+    | 🔍 Listas Negras / PEP | Debida diligencia y screening contra listas restrictivas (OFAC, ONU, UE, UK, INTERPOL) — art. 3° y 4° Ley N°19.913, exigido a Sujetos Obligados del mercado de valores por **Circular UAF N°57** (y N°49 para corredoras de bolsa/intermediarios de valores) |
+    | 💸 Smurfing / Fraccionamiento | Detección de fraccionamiento de operaciones — señal de alerta típica de **lavado de activos**, delito base de la **Ley N°20.393** (responsabilidad penal de las personas jurídicas) |
+    | 📰 Noticias Adversas | Debida diligencia reforzada (EDD) para clientes de mayor riesgo — **Circular UAF N°57**, arts. sobre clientes PEP y de riesgo |
+    | 🪪 KYC / Verificación RUT | Identificación y verificación de clientes — art. 3° Ley N°19.913 y normativa CMF sobre conozca a su cliente |
+
+    Este motor apoya el cumplimiento normativo, pero **no reemplaza el juicio del Oficial de Cumplimiento** ni constituye asesoría legal. Las alertas deben ser revisadas y, si corresponde, derivar en un Reporte de Operación Sospechosa (ROS) a la UAF.
+    """)
 
 resumen = obtener_resumen()
 col1, col2, col3, col4, col5 = st.columns(5)
@@ -73,22 +85,30 @@ with tab1:
         st.dataframe(df_clientes, use_container_width=True)
 
         st.markdown("---")
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         with col1:
             score_minimo = st.slider("Score mínimo (%)", 50, 100, 85)
         with col2:
             st.metric("Clientes a verificar", len(df_clientes))
+        with col3:
+            incluir_interpol = st.checkbox(
+                "Incluir INTERPOL (notificaciones rojas)", value=False,
+                help="Consulta en vivo por cliente. Es una API pública gratuita, "
+                     "pero al ser 1 consulta por cliente puede demorar más con listas grandes."
+            )
 
         if st.button("🚀 Iniciar monitoreo listas", type="primary"):
             with st.spinner("Cargando fuentes de sanciones..."):
                 lista_ofac = cargar_lista_ofac()
                 lista_onu = cargar_lista_onu()
                 lista_uk = cargar_lista_uk()
+                lista_eu = cargar_lista_eu()
 
-            col_p1, col_p2, col_p3 = st.columns(3)
+            col_p1, col_p2, col_p3, col_p4 = st.columns(4)
             col_p1.metric("OFAC", f"{len(lista_ofac):,}")
             col_p2.metric("ONU", f"{len(lista_onu):,}")
             col_p3.metric("UK", f"{len(lista_uk):,}")
+            col_p4.metric("Unión Europea", f"{len(lista_eu):,}")
 
             alertas = []
             barra = st.progress(0)
@@ -139,6 +159,36 @@ with tab1:
                             "Tipo": "SANCIÓN UK"
                         })
                         break
+
+                for nombre_eu in lista_eu:
+                    score = fuzz.token_sort_ratio(row["nombre"].upper(), str(nombre_eu).upper())
+                    if score >= score_minimo:
+                        alertas.append({
+                            "Fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                            "ID Cliente": row["id"],
+                            "Nombre Cliente": row["nombre"],
+                            "RUT": row["rut"],
+                            "Match Encontrado": nombre_eu,
+                            "Score %": score,
+                            "Fuente": "EU Sanctions",
+                            "Tipo": "SANCIÓN UE"
+                        })
+                        break
+
+                if incluir_interpol:
+                    for notice in buscar_interpol_red_notices(row["nombre"]):
+                        score = fuzz.token_sort_ratio(row["nombre"].upper(), notice["match"].upper())
+                        if score >= score_minimo:
+                            alertas.append({
+                                "Fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                                "ID Cliente": row["id"],
+                                "Nombre Cliente": row["nombre"],
+                                "RUT": row["rut"],
+                                "Match Encontrado": notice["match"],
+                                "Score %": score,
+                                "Fuente": "INTERPOL Red Notice",
+                                "Tipo": "NOTIFICACIÓN ROJA INTERPOL"
+                            })
 
             estado.empty()
             barra.empty()
@@ -278,6 +328,11 @@ with tab3:
 # ════════════════════════════════════════════════════════
 with tab4:
     st.subheader("📰 Búsqueda de noticias adversas")
+    st.caption(
+        "Combina NewsAPI (si hay key configurada), GDELT Project y Google News RSS — "
+        "estas dos últimas son gratuitas y no requieren API key, por lo que el módulo "
+        "funciona igual sin plan pago."
+    )
 
     col1, col2 = st.columns(2)
     with col1:
@@ -296,7 +351,7 @@ with tab4:
                 for n in noticias:
                     st.markdown(f"""
 **📰 {n['titulo']}**  
-🗓️ {n['fecha']} | 📡 {n['fuente']}  
+🗓️ {n['fecha']} | 📡 {n['fuente']} | _{n.get('tipo', 'NOTICIA ADVERSA')}_  
 🔗 [Ver noticia]({n['url']})
 
 ---

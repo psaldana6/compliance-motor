@@ -1,12 +1,25 @@
 import requests
 import os
 from dotenv import load_dotenv
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
+from urllib.parse import quote
 
 # ─── CONFIGURACIÓN ───────────────────────────────────────
 load_dotenv()
 NEWSAPI_KEY = os.getenv("NEWSAPI_KEY")
 CMF_API_KEY = os.getenv("CMF_API_KEY")
+
+# Términos de riesgo compartidos (ES/EN) — alineados a delitos base
+# de la Ley 20.393 (lavado de activos, cohecho/soborno, financiamiento
+# del terrorismo, receptación, corrupción entre particulares, etc.)
+TERMINOS_RIESGO = [
+    "fraude", "lavado de activos", "lavado de dinero", "corrupción",
+    "cohecho", "soborno", "sanción", "investigado", "estafa",
+    "financiamiento del terrorismo", "evasión tributaria",
+    "fraud", "money laundering", "corruption", "bribery", "sanction",
+    "investigated", "detenido", "imputado", "formalizado", "arrested", "indicted"
+]
 
 # ─── NEWSAPI — NOTICIAS ADVERSAS ─────────────────────────
 def buscar_noticias_adversas(nombre, dias=30):
@@ -19,15 +32,7 @@ def buscar_noticias_adversas(nombre, dias=30):
         return []
 
     fecha_desde = (datetime.now() - timedelta(days=dias)).strftime("%Y-%m-%d")
-
-    # Términos de riesgo en español e inglés
-    terminos_riesgo = [
-        "fraude", "lavado", "corrupción", "sanción", "investigado",
-        "fraud", "money laundering", "corruption", "sanction", "investigated",
-        "detenido", "imputado", "formalizado", "arrested", "indicted"
-    ]
-
-    query = f'"{nombre}" AND ({" OR ".join(terminos_riesgo[:5])})'
+    query = f'"{nombre}" AND ({" OR ".join(TERMINOS_RIESGO[:5])})'
 
     url = "https://newsapi.org/v2/everything"
     params = {
@@ -63,6 +68,95 @@ def buscar_noticias_adversas(nombre, dias=30):
 
     except Exception as e:
         print(f"❌ Error consultando NewsAPI: {e}")
+        return []
+
+# ─── GDELT — MONITOREO GLOBAL DE PRENSA (GRATIS, SIN KEY) ─
+def buscar_noticias_gdelt(nombre, dias=30):
+    """
+    Busca noticias adversas usando el GDELT Project DOC 2.0 API.
+    Cubre miles de medios a nivel mundial (incluye prensa chilena/LatAm),
+    es gratuito, público y no requiere API key — buen respaldo/backup de
+    NewsAPI (cuyo plan gratuito no permite uso comercial/producción).
+    Docs: https://blog.gdeltproject.org/gdelt-doc-2-0-api-debuts/
+    """
+    dias = max(1, min(dias, 90))  # GDELT limita el rango de búsqueda
+    query = f'"{nombre}" ({" OR ".join(TERMINOS_RIESGO[:8])})'
+
+    url = "https://api.gdeltproject.org/api/v2/doc/doc"
+    params = {
+        "query": query,
+        "mode": "ArtList",
+        "maxrecords": 20,
+        "format": "json",
+        "timespan": f"{dias}d",
+        "sort": "DateDesc",
+    }
+
+    try:
+        response = requests.get(url, params=params, timeout=15)
+        if not response.text.strip():
+            return []
+        data = response.json()
+        articulos = data.get("articles", [])
+        resultados = []
+        for art in articulos:
+            seendate = art.get("seendate", "")  # formato YYYYMMDDTHHMMSSZ
+            fecha = f"{seendate[:4]}-{seendate[4:6]}-{seendate[6:8]}" if len(seendate) >= 8 else ""
+            resultados.append({
+                "fecha": fecha,
+                "titulo": art.get("title", ""),
+                "fuente": art.get("domain", ""),
+                "url": art.get("url", ""),
+                "tipo": "NOTICIA ADVERSA (GDELT)"
+            })
+        return resultados
+    except Exception as e:
+        print(f"⚠️  Error consultando GDELT: {e}")
+        return []
+
+# ─── GOOGLE NEWS RSS — NOTICIAS EN ESPAÑOL (GRATIS, SIN KEY) ─
+def buscar_google_news_rss(nombre, dias=30):
+    """
+    Busca noticias adversas en Google News RSS, localizado para Chile
+    (hl=es-419&gl=CL). Gratuito, sin API key, buena cobertura de
+    prensa local (útil para PLA/FT y debida diligencia reforzada
+    según Circular UAF N°49 / N°57 para el mercado de valores).
+    """
+    import xml.etree.ElementTree as ET
+
+    terminos = " OR ".join(TERMINOS_RIESGO[:8])
+    consulta = f'"{nombre}" ({terminos})'
+    url = f"https://news.google.com/rss/search?q={quote(consulta)}&hl=es-419&gl=CL&ceid=CL:es"
+
+    try:
+        response = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+        root = ET.fromstring(response.content)
+        fecha_limite = datetime.now(timezone.utc) - timedelta(days=dias)
+
+        resultados = []
+        for item in root.findall(".//item")[:15]:
+            pub_date_raw = item.findtext("pubDate", "")
+            try:
+                fecha_dt = parsedate_to_datetime(pub_date_raw)
+                if fecha_dt.tzinfo is None:
+                    fecha_dt = fecha_dt.replace(tzinfo=timezone.utc)
+            except Exception:
+                fecha_dt = None
+
+            if fecha_dt and fecha_dt < fecha_limite:
+                continue
+
+            fuente_el = item.find("source")
+            resultados.append({
+                "fecha": fecha_dt.strftime("%Y-%m-%d") if fecha_dt else "",
+                "titulo": item.findtext("title", ""),
+                "fuente": fuente_el.text if fuente_el is not None else "Google News",
+                "url": item.findtext("link", ""),
+                "tipo": "NOTICIA ADVERSA (Google News)"
+            })
+        return resultados
+    except Exception as e:
+        print(f"⚠️  Error consultando Google News RSS: {e}")
         return []
 
 # ─── CMF CHILE — ENTIDADES REGULADAS ─────────────────────
@@ -117,8 +211,25 @@ def analizar_riesgo_reputacional(nombre, dias=30):
         "nivel_riesgo": "BAJO"
     }
 
-    # Noticias adversas
-    noticias = buscar_noticias_adversas(nombre, dias)
+    # Noticias adversas — se combinan varias fuentes gratuitas/públicas.
+    # NewsAPI solo corre si hay key configurada; GDELT y Google News
+    # RSS siempre corren porque no requieren key, así el motor funciona
+    # sin depender de un plan pago.
+    noticias = []
+    noticias += buscar_noticias_adversas(nombre, dias)
+    noticias += buscar_noticias_gdelt(nombre, dias)
+    noticias += buscar_google_news_rss(nombre, dias)
+
+    # Deduplicar por URL (o por título si no hay URL)
+    vistos = set()
+    noticias_unicas = []
+    for n in noticias:
+        clave = n.get("url") or n.get("titulo")
+        if clave and clave not in vistos:
+            vistos.add(clave)
+            noticias_unicas.append(n)
+    noticias = noticias_unicas
+
     if noticias:
         resultado["noticias_adversas"] = noticias
         resultado["nivel_riesgo"] = "ALTO"

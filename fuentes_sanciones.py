@@ -90,6 +90,41 @@ def cargar_lista_cmf():
         print(f"⚠️  Error cargando CMF: {e}")
         return []
 
+# ─── 5. INTERPOL — NOTIFICACIONES ROJAS (GRATIS, SIN KEY) ─
+def buscar_interpol_red_notices(nombre):
+    """
+    Consulta la API pública de INTERPOL (personas con notificación roja,
+    es decir, buscadas internacionalmente). Gratuita, no requiere key.
+    Docs: https://interpol.api.bund.dev/ (ws-public.interpol.int)
+    Es una consulta en vivo por nombre, no una lista descargable completa.
+    """
+    partes = nombre.strip().split()
+    if not partes:
+        return []
+    forename = partes[0]
+    apellido = " ".join(partes[1:]) if len(partes) > 1 else ""
+
+    url = "https://ws-public.interpol.int/notices/v1/red"
+    params = {"forename": forename, "name": apellido, "resultPerPage": 20}
+
+    try:
+        response = requests.get(url, params=params, timeout=15,
+                                 headers={"Accept": "application/json"})
+        data = response.json()
+        notices = data.get("_embedded", {}).get("notices", [])
+        resultados = []
+        for n in notices:
+            resultados.append({
+                "match": f"{n.get('forename', '')} {n.get('name', '')}".strip(),
+                "entity_id": n.get("entity_id", ""),
+                "fuente": "INTERPOL Red Notice",
+                "detalle_url": n.get("_links", {}).get("self", {}).get("href", "")
+            })
+        return resultados
+    except Exception as e:
+        print(f"⚠️  Error consultando INTERPOL: {e}")
+        return []
+
 # ─── MOTOR DE BÚSQUEDA MULTI-FUENTE ──────────────────────
 def buscar_todas_las_fuentes(nombre, score_minimo=SCORE_MINIMO):
     """Busca un nombre en todas las fuentes disponibles"""
