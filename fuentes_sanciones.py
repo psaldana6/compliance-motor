@@ -9,11 +9,23 @@ SCORE_MINIMO = 85
 
 # ─── 1. UNIÓN EUROPEA ────────────────────────────────────
 def cargar_lista_eu():
-    """Descarga lista de sanciones de la UE"""
-    url = "https://webgate.ec.europa.eu/fsd/fsf/public/files/csvFullSanctionsList_1_1/content?token=dG9rZW4tMjAxNy0wMS0wMQ"
+    """Descarga lista de sanciones de la UE via XML"""
+    url = "https://webgate.ec.europa.eu/fsd/fsf/public/files/xmlFullSanctionsList_1_1/content?token=dG9rZW4tMjAxNw"
     try:
-        df = pd.read_csv(url, sep=";", encoding="utf-8", on_bad_lines="skip")
-        nombres = df.iloc[:, 0].dropna().str.strip().tolist()
+        response = requests.get(url, timeout=30)
+        root = ET.fromstring(response.content)
+        nombres = []
+        for entity in root.iter("nameAlias"):
+            nombre = entity.get("wholeName", "")
+            if not nombre:
+                nombre = entity.get("firstName", "") + " " + entity.get("lastName", "")
+            if nombre.strip():
+                nombres.append(nombre.strip())
+        # También buscar entidades
+        for entity in root.iter("entity"):
+            nombre = entity.findtext("name", "")
+            if nombre:
+                nombres.append(nombre.strip())
         print(f"✅ EU Sanctions: {len(nombres):,} entradas cargadas")
         return nombres
     except Exception as e:
@@ -47,11 +59,17 @@ def cargar_lista_onu():
 
 # ─── 3. REINO UNIDO ──────────────────────────────────────
 def cargar_lista_uk():
-    """Descarga lista de sanciones del Reino Unido"""
-    url = "https://assets.publishing.service.gov.uk/government/uploads/system/uploads/attachment_data/file/consolidated-list-of-financial-sanctions-targets.csv"
+    """Descarga UK Sanctions List — nueva lista desde enero 2026"""
+    url = "https://assets.publishing.service.gov.uk/media/uk-sanctions-list.csv"
     try:
-        df = pd.read_csv(url, encoding="latin-1", on_bad_lines="skip")
-        nombres = df.iloc[:, 5].dropna().str.strip().tolist()
+        response = requests.get(url, timeout=30)
+        df = pd.read_csv(pd.io.common.BytesIO(response.content), encoding="latin-1", on_bad_lines="skip")
+        # Buscar columna de nombres
+        col_nombre = [c for c in df.columns if "name" in c.lower() or "nombre" in c.lower()]
+        if col_nombre:
+            nombres = df[col_nombre[0]].dropna().str.strip().tolist()
+        else:
+            nombres = df.iloc[:, 0].dropna().str.strip().tolist()
         print(f"✅ UK Sanctions: {len(nombres):,} entradas cargadas")
         return nombres
     except Exception as e:
