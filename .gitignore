@@ -1,0 +1,13 @@
+# Credenciales — nunca subir a GitHub
+.env
+
+# Base de datos local
+compliance_motor.db
+
+# Archivos temporales Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Archivos temporales de alertas
+alertas_temp_*.csv

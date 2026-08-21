@@ -6,17 +6,24 @@ from email import encoders
 import pandas as pd
 from datetime import datetime
 import os
+from dotenv import load_dotenv
 
-# ─── CONFIGURACIÓN EMAIL CORPORATIVO ─────────────────────
-EMAIL_ORIGEN = "tu_nombre@tuempresa.cl"
-EMAIL_DESTINO = "tu_nombre@tuempresa.cl"
-APP_PASSWORD = "tu_password_corporativo"
-SMTP_SERVER = "smtp.office365.com"
-SMTP_PORT = 587
+# ─── CARGAR VARIABLES DE ENTORNO ─────────────────────────
+load_dotenv()
+
+EMAIL_ORIGEN = os.getenv("EMAIL_ORIGEN")
+EMAIL_DESTINO = os.getenv("EMAIL_DESTINO")
+APP_PASSWORD = os.getenv("EMAIL_PASSWORD")
+SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.office365.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 
 def enviar_alerta_email(alertas, tipo="LISTA NEGRA"):
     if not alertas:
         print("Sin alertas que enviar")
+        return False
+
+    if not EMAIL_ORIGEN or not APP_PASSWORD:
+        print("⚠️  Credenciales de email no configuradas en .env")
         return False
 
     msg = MIMEMultipart("alternative")
@@ -68,10 +75,7 @@ def enviar_alerta_email(alertas, tipo="LISTA NEGRA"):
         adjunto = MIMEBase("application", "octet-stream")
         adjunto.set_payload(f.read())
         encoders.encode_base64(adjunto)
-        adjunto.add_header(
-            "Content-Disposition",
-            f"attachment; filename={csv_path}"
-        )
+        adjunto.add_header("Content-Disposition", f"attachment; filename={csv_path}")
         msg.attach(adjunto)
 
     try:
@@ -86,7 +90,6 @@ def enviar_alerta_email(alertas, tipo="LISTA NEGRA"):
         print(f"❌ Error enviando email: {e}")
         return False
 
-# ─── PRUEBA ───────────────────────────────────────────────
 if __name__ == "__main__":
     alertas_prueba = [
         {
