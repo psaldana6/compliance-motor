@@ -1,0 +1,10 @@
+cliente_id,cliente_nombre,fecha,monto,tipo
+001,Juan Pérez García,2026-08-17,9500,deposito
+001,Juan Pérez García,2026-08-18,9800,deposito
+001,Juan Pérez García,2026-08-19,9200,transferencia
+001,Juan Pérez García,2026-08-20,9700,deposito
+002,María González,2026-08-19,500,deposito
+002,María González,2026-08-20,300,transferencia
+003,Pedro Saldaña,2026-08-16,8900,deposito
+003,Pedro Saldaña,2026-08-17,8500,deposito
+003,Pedro Saldaña,2026-08-18,8700,transferencia

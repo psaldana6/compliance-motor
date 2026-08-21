@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import requests
 from rapidfuzz import fuzz
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # ─── CONFIGURACIÓN ───────────────────────────────────────
 st.set_page_config(
@@ -11,116 +11,167 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("🛡️ Motor de Compliance - Monitoreo de Clientes")
+UMBRAL_REPORTE = 10000
+VENTANA_DIAS = 7
+MIN_TRANSACCIONES = 3
+PORCENTAJE_UMBRAL = 0.85
+
+st.title("🛡️ Motor de Compliance - Monitoreo Integral")
 st.markdown("---")
 
-# ─── FUNCIÓN OFAC ────────────────────────────────────────
-@st.cache_data(ttl=3600)
-def cargar_lista_ofac():
-    """Descarga la lista OFAC SDN desde el Tesoro de EEUU"""
-    url = "https://www.treasury.gov/ofac/downloads/sdn.csv"
-    try:
-        df = pd.read_csv(url, header=None, encoding="latin-1")
-        nombres = df[1].dropna().str.strip().tolist()
-        return nombres
-    except Exception as e:
-        st.error(f"Error cargando OFAC: {e}")
-        return []
+# ─── TABS ────────────────────────────────────────────────
+tab1, tab2 = st.tabs(["🔍 Listas Negras / PEP", "💸 Smurfing / Fraccionamiento"])
 
-def buscar_en_ofac(nombre, lista_ofac, score_minimo):
-    """Busca nombre contra lista OFAC con fuzzy matching"""
-    alertas = []
-    for nombre_ofac in lista_ofac:
-        score = fuzz.token_sort_ratio(nombre.upper(), str(nombre_ofac).upper())
-        if score >= score_minimo:
-            alertas.append({
-                "match": nombre_ofac,
-                "score": score,
-                "fuente": "OFAC SDN List"
-            })
-    if alertas:
-        return sorted(alertas, key=lambda x: x["score"], reverse=True)[:3]
-    return []
+# ════════════════════════════════════════════════════════
+# TAB 1 — LISTAS NEGRAS
+# ════════════════════════════════════════════════════════
+with tab1:
+    st.subheader("📂 Cargar lista de clientes")
+    archivo = st.file_uploader(
+        "Sube el archivo CSV de clientes",
+        type=["csv"],
+        key="clientes"
+    )
 
-# ─── CARGA DE ARCHIVO ────────────────────────────────────
-st.subheader("📂 Cargar lista de clientes")
-archivo = st.file_uploader(
-    "Sube el archivo CSV de clientes",
-    type=["csv"],
-    help="Columnas requeridas: id, nombre, rut"
-)
+    @st.cache_data(ttl=3600)
+    def cargar_lista_ofac():
+        url = "https://www.treasury.gov/ofac/downloads/sdn.csv"
+        try:
+            df = pd.read_csv(url, header=None, encoding="latin-1")
+            return df[1].dropna().str.strip().tolist()
+        except Exception as e:
+            st.error(f"Error cargando OFAC: {e}")
+            return []
 
-if archivo:
-    df_clientes = pd.read_csv(archivo)
-    st.success(f"✅ {len(df_clientes)} clientes cargados")
-    st.dataframe(df_clientes, use_container_width=True)
+    def buscar_en_ofac(nombre, lista_ofac, score_minimo):
+        alertas = []
+        for nombre_ofac in lista_ofac:
+            score = fuzz.token_sort_ratio(nombre.upper(), str(nombre_ofac).upper())
+            if score >= score_minimo:
+                alertas.append({
+                    "match": nombre_ofac,
+                    "score": score,
+                    "fuente": "OFAC SDN List"
+                })
+        return sorted(alertas, key=lambda x: x["score"], reverse=True)[:3] if alertas else []
 
-    st.markdown("---")
-    st.subheader("🔍 Ejecutar monitoreo")
+    if archivo:
+        df_clientes = pd.read_csv(archivo)
+        st.success(f"✅ {len(df_clientes)} clientes cargados")
+        st.dataframe(df_clientes, use_container_width=True)
 
-    col1, col2 = st.columns(2)
-    with col1:
-        score_minimo = st.slider(
-            "Score mínimo de alerta (%)",
-            min_value=50, max_value=100, value=85
-        )
-    with col2:
-        st.metric("Clientes a verificar", len(df_clientes))
+        st.markdown("---")
+        col1, col2 = st.columns(2)
+        with col1:
+            score_minimo = st.slider("Score mínimo de alerta (%)", 50, 100, 85)
+        with col2:
+            st.metric("Clientes a verificar", len(df_clientes))
 
-    if st.button("🚀 Iniciar monitoreo", type="primary"):
-        with st.spinner("Cargando lista OFAC desde el Tesoro de EEUU..."):
-            lista_ofac = cargar_lista_ofac()
+        if st.button("🚀 Iniciar monitoreo listas", type="primary"):
+            with st.spinner("Cargando lista OFAC..."):
+                lista_ofac = cargar_lista_ofac()
 
-        if not lista_ofac:
-            st.error("No se pudo cargar la lista OFAC. Verifica tu conexión.")
-        else:
-            st.info(f"✅ Lista OFAC cargada: {len(lista_ofac):,} entradas")
-            alertas = []
-            barra = st.progress(0)
-            estado = st.empty()
+            if lista_ofac:
+                st.info(f"✅ OFAC cargada: {len(lista_ofac):,} entradas")
+                alertas = []
+                barra = st.progress(0)
+                estado = st.empty()
 
-            for i, row in df_clientes.iterrows():
-                estado.text(f"Verificando: {row['nombre']}...")
-                barra.progress((i + 1) / len(df_clientes))
+                for i, row in df_clientes.iterrows():
+                    estado.text(f"Verificando: {row['nombre']}...")
+                    barra.progress((i + 1) / len(df_clientes))
+                    matches = buscar_en_ofac(row["nombre"], lista_ofac, score_minimo)
+                    for m in matches:
+                        alertas.append({
+                            "Fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                            "ID Cliente": row["id"],
+                            "Nombre Cliente": row["nombre"],
+                            "RUT": row["rut"],
+                            "Match Encontrado": m["match"],
+                            "Score %": m["score"],
+                            "Fuente": m["fuente"],
+                            "Tipo": "SANCIÓN OFAC"
+                        })
 
-                matches_ofac = buscar_en_ofac(
-                    row["nombre"], lista_ofac, score_minimo
-                )
+                estado.empty()
+                barra.empty()
 
-                for match in matches_ofac:
+                if alertas:
+                    df_alertas = pd.DataFrame(alertas)
+                    st.error(f"⚠️ {len(alertas)} alerta(s) encontrada(s)")
+                    st.dataframe(df_alertas, use_container_width=True)
+                    csv = df_alertas.to_csv(index=False).encode("utf-8")
+                    st.download_button("📥 Descargar alertas", csv,
+                        f"alertas_listas_{datetime.now().strftime('%Y%m%d_%H%M')}.csv", "text/csv")
+                else:
+                    st.success("✅ Sin alertas — todos los clientes están limpios")
+    else:
+        st.info("👆 Sube un archivo CSV para comenzar")
+        st.code("id,nombre,rut\n001,Juan Pérez,12345678-9\n002,María González,98765432-1")
+
+# ════════════════════════════════════════════════════════
+# TAB 2 — SMURFING
+# ════════════════════════════════════════════════════════
+with tab2:
+    st.subheader("📂 Cargar transacciones")
+    archivo_tx = st.file_uploader(
+        "Sube el archivo CSV de transacciones",
+        type=["csv"],
+        key="transacciones"
+    )
+
+    def detectar_smurfing(df_tx, umbral, ventana, min_tx, porcentaje):
+        alertas = []
+        fecha_limite = datetime.now() - timedelta(days=ventana)
+        df_tx["fecha"] = pd.to_datetime(df_tx["fecha"])
+        df_reciente = df_tx[df_tx["fecha"] >= fecha_limite].copy()
+
+        for cliente_id, grupo in df_reciente.groupby("cliente_id"):
+            tx_bajo = grupo[grupo["monto"] < umbral]
+            if len(tx_bajo) >= min_tx:
+                total = tx_bajo["monto"].sum()
+                if total >= umbral * porcentaje:
                     alertas.append({
-                        "Fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                        "ID Cliente": row["id"],
-                        "Nombre Cliente": row["nombre"],
-                        "RUT": row["rut"],
-                        "Match Encontrado": match["match"],
-                        "Score %": match["score"],
-                        "Fuente": match["fuente"],
-                        "Tipo": "SANCIÓN OFAC"
+                        "Fecha detección": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                        "ID Cliente": cliente_id,
+                        "Nombre Cliente": grupo["cliente_nombre"].iloc[0],
+                        "N° Transacciones": len(tx_bajo),
+                        "Monto Total": f"${total:,.0f}",
+                        "Umbral reporte": f"${umbral:,}",
+                        "Ventana días": ventana,
+                        "Tipo alerta": "SMURFING / FRACCIONAMIENTO",
+                        "Riesgo": "ALTO" if total > umbral else "MEDIO"
                     })
+        return alertas
 
-            estado.empty()
-            barra.empty()
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        umbral = st.number_input("Umbral de reporte ($)", value=10000, step=1000)
+    with col2:
+        ventana = st.number_input("Ventana de días", value=7, step=1)
+    with col3:
+        min_tx = st.number_input("Mínimo de transacciones", value=3, step=1)
+
+    if archivo_tx:
+        df_tx = pd.read_csv(archivo_tx)
+        st.success(f"✅ {len(df_tx)} transacciones cargadas")
+        st.dataframe(df_tx, use_container_width=True)
+
+        if st.button("🚀 Detectar smurfing", type="primary"):
+            alertas_smurf = detectar_smurfing(df_tx, umbral, ventana, min_tx, PORCENTAJE_UMBRAL)
 
             st.markdown("---")
-            st.subheader("📊 Resultados del monitoreo")
+            st.subheader("📊 Resultados")
 
-            if alertas:
-                df_alertas = pd.DataFrame(alertas)
-                st.error(f"⚠️ {len(alertas)} alerta(s) encontrada(s)")
-                st.dataframe(df_alertas, use_container_width=True)
-
-                csv = df_alertas.to_csv(index=False).encode("utf-8")
-                st.download_button(
-                    "📥 Descargar alertas CSV",
-                    csv,
-                    f"alertas_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                    "text/csv"
-                )
+            if alertas_smurf:
+                df_smurf = pd.DataFrame(alertas_smurf)
+                st.error(f"⚠️ {len(alertas_smurf)} patrón(es) de smurfing detectado(s)")
+                st.dataframe(df_smurf, use_container_width=True)
+                csv = df_smurf.to_csv(index=False).encode("utf-8")
+                st.download_button("📥 Descargar alertas smurfing", csv,
+                    f"alertas_smurf_{datetime.now().strftime('%Y%m%d_%H%M')}.csv", "text/csv")
             else:
-                st.success("✅ Sin alertas — todos los clientes están limpios")
-
-else:
-    st.info("👆 Sube un archivo CSV para comenzar el monitoreo")
-    st.markdown("### Formato esperado:")
-    st.code("id,nombre,rut\n001,Juan Pérez,12345678-9\n002,María González,98765432-1")
+                st.success("✅ Sin patrones de smurfing detectados")
+    else:
+        st.info("👆 Sube un CSV de transacciones para analizar")
+        st.code("cliente_id,cliente_nombre,fecha,monto,tipo\n001,Juan Pérez,2026-08-20,9500,deposito")
