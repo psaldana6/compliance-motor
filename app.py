@@ -83,8 +83,89 @@ with tab1:
             st.metric("Clientes a verificar", len(df_clientes))
 
         if st.button("🚀 Iniciar monitoreo listas", type="primary"):
-            with st.spinner("Cargando lista OFAC..."):
-                lista_ofac = cargar_lista_ofac()
+           from fuentes_sanciones import cargar_lista_onu, cargar_lista_uk, buscar_todas_las_fuentes
+
+    col_prog1, col_prog2, col_prog3 = st.columns(3)
+
+    with st.spinner("Cargando fuentes de sanciones..."):
+        lista_ofac = cargar_lista_ofac()
+        lista_onu = cargar_lista_onu()
+        lista_uk = cargar_lista_uk()
+
+    col_prog1.metric("OFAC", f"{len(lista_ofac):,}")
+    col_prog2.metric("ONU", f"{len(lista_onu):,}")
+    col_prog3.metric("UK", f"{len(lista_uk):,}")
+
+    if lista_ofac or lista_onu or lista_uk:
+        alertas = []
+        barra = st.progress(0)
+        estado = st.empty()
+
+        for i, row in df_clientes.iterrows():
+            estado.text(f"Verificando: {row['nombre']}...")
+            barra.progress((i + 1) / len(df_clientes))
+
+            # OFAC
+            matches_ofac = buscar_en_ofac(row["nombre"], lista_ofac, score_minimo)
+            for m in matches_ofac:
+                alertas.append({
+                    "Fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                    "ID Cliente": row["id"],
+                    "Nombre Cliente": row["nombre"],
+                    "RUT": row["rut"],
+                    "Match Encontrado": m["match"],
+                    "Score %": m["score"],
+                    "Fuente": m["fuente"],
+                    "Tipo": "SANCIÓN OFAC"
+                })
+
+            # ONU
+            for nombre_onu in lista_onu:
+                score = fuzz.token_sort_ratio(row["nombre"].upper(), str(nombre_onu).upper())
+                if score >= score_minimo:
+                    alertas.append({
+                        "Fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                        "ID Cliente": row["id"],
+                        "Nombre Cliente": row["nombre"],
+                        "RUT": row["rut"],
+                        "Match Encontrado": nombre_onu,
+                        "Score %": score,
+                        "Fuente": "ONU Sanctions",
+                        "Tipo": "SANCIÓN ONU"
+                    })
+                    break
+
+            # UK
+            for nombre_uk in lista_uk:
+                score = fuzz.token_sort_ratio(row["nombre"].upper(), str(nombre_uk).upper())
+                if score >= score_minimo:
+                    alertas.append({
+                        "Fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                        "ID Cliente": row["id"],
+                        "Nombre Cliente": row["nombre"],
+                        "RUT": row["rut"],
+                        "Match Encontrado": nombre_uk,
+                        "Score %": score,
+                        "Fuente": "UK Sanctions",
+                        "Tipo": "SANCIÓN UK"
+                    })
+                    break
+
+        estado.empty()
+        barra.empty()
+
+        guardar_alertas_listas(alertas)
+        guardar_ejecucion(len(df_clientes), len(alertas), 0, "OK")
+
+        if alertas:
+            df_alertas = pd.DataFrame(alertas)
+            st.error(f"⚠️ {len(alertas)} alerta(s) encontrada(s)")
+            st.dataframe(df_alertas, use_container_width=True)
+            csv = df_alertas.to_csv(index=False).encode("utf-8")
+            st.download_button("📥 Descargar alertas", csv,
+                f"alertas_listas_{datetime.now().strftime('%Y%m%d_%H%M')}.csv", "text/csv")
+        else:
+            st.success("✅ Sin alertas — todos los clientes están limpios")
 
             if lista_ofac:
                 st.info(f"✅ OFAC cargada: {len(lista_ofac):,} entradas")
