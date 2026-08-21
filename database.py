@@ -76,7 +76,7 @@ def guardar_alertas_listas(alertas):
             (fecha, cliente_id, cliente_nombre, rut, match_encontrado, score, fuente, tipo)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            a.get("Fecha", ""),
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             str(a.get("ID Cliente", "")),
             a.get("Nombre Cliente", ""),
             a.get("RUT", ""),
@@ -114,32 +114,30 @@ def guardar_ejecucion(clientes, alertas_listas, alertas_smurf, estado):
 
 # ─── CONSULTAR ALERTAS ────────────────────────────────────
 def obtener_alertas_listas(fecha_desde=None, fecha_hasta=None):
-    """Obtiene alertas de listas con filtro de fechas opcional"""
     conn = sqlite3.connect(DB_PATH)
     query = "SELECT * FROM alertas_listas WHERE 1=1"
     params = []
     if fecha_desde:
-        query += " AND fecha >= ?"
+        query += " AND fecha_creacion >= ?"
         params.append(fecha_desde)
     if fecha_hasta:
-        query += " AND fecha <= ?"
-        params.append(fecha_hasta)
+        query += " AND fecha_creacion <= ?"
+        params.append(fecha_hasta + " 23:59:59")
     query += " ORDER BY fecha_creacion DESC"
     df = pd.read_sql_query(query, conn, params=params)
     conn.close()
     return df
 
 def obtener_alertas_smurfing(fecha_desde=None, fecha_hasta=None):
-    """Obtiene alertas de smurfing con filtro de fechas opcional"""
     conn = sqlite3.connect(DB_PATH)
     query = "SELECT * FROM alertas_smurfing WHERE 1=1"
     params = []
     if fecha_desde:
-        query += " AND fecha_deteccion >= ?"
+        query += " AND fecha_creacion >= ?"
         params.append(fecha_desde)
     if fecha_hasta:
-        query += " AND fecha_deteccion <= ?"
-        params.append(fecha_hasta)
+        query += " AND fecha_creacion <= ?"
+        params.append(fecha_hasta + " 23:59:59")
     query += " ORDER BY fecha_creacion DESC"
     df = pd.read_sql_query(query, conn, params=params)
     conn.close()
