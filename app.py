@@ -8,25 +8,22 @@ from database import (
     guardar_ejecucion, obtener_alertas_listas, obtener_alertas_smurfing,
     obtener_historial, obtener_resumen
 )
+from fuentes_sanciones import cargar_lista_onu, cargar_lista_uk
+from noticias_adversas import analizar_riesgo_reputacional
+from verificacion_rut import verificar_rut
 
 # ─── CONFIGURACIÓN ───────────────────────────────────────
-st.set_page_config(
-    page_title="Motor Compliance",
-    page_icon="🛡️",
-    layout="wide"
-)
+st.set_page_config(page_title="Motor Compliance", page_icon="🛡️", layout="wide")
 
 UMBRAL_REPORTE = 10000
 VENTANA_DIAS = 7
 MIN_TRANSACCIONES = 3
 PORCENTAJE_UMBRAL = 0.85
 
-# Inicializar BD al arrancar
 inicializar_db()
 
 st.title("🛡️ Motor de Compliance - Monitoreo Integral")
 
-# ─── MÉTRICAS RESUMEN ────────────────────────────────────
 resumen = obtener_resumen()
 col1, col2, col3, col4, col5 = st.columns(5)
 col1.metric("Alertas Listas", resumen["total_alertas_listas"])
@@ -37,12 +34,12 @@ col5.metric("Última ejecución", resumen["ultima_ejecucion"] or "Nunca")
 
 st.markdown("---")
 
-# ─── TABS ────────────────────────────────────────────────
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🔍 Listas Negras / PEP",
     "💸 Smurfing / Fraccionamiento",
     "📊 Historial y Análisis",
-    "📰 Noticias Adversas"
+    "📰 Noticias Adversas",
+    "🪪 KYC / Verificación RUT"
 ])
 
 # ════════════════════════════════════════════════════════
@@ -83,128 +80,81 @@ with tab1:
             st.metric("Clientes a verificar", len(df_clientes))
 
         if st.button("🚀 Iniciar monitoreo listas", type="primary"):
-           from fuentes_sanciones import cargar_lista_onu, cargar_lista_uk, buscar_todas_las_fuentes
+            with st.spinner("Cargando fuentes de sanciones..."):
+                lista_ofac = cargar_lista_ofac()
+                lista_onu = cargar_lista_onu()
+                lista_uk = cargar_lista_uk()
 
-    col_prog1, col_prog2, col_prog3 = st.columns(3)
+            col_p1, col_p2, col_p3 = st.columns(3)
+            col_p1.metric("OFAC", f"{len(lista_ofac):,}")
+            col_p2.metric("ONU", f"{len(lista_onu):,}")
+            col_p3.metric("UK", f"{len(lista_uk):,}")
 
-    with st.spinner("Cargando fuentes de sanciones..."):
-        lista_ofac = cargar_lista_ofac()
-        lista_onu = cargar_lista_onu()
-        lista_uk = cargar_lista_uk()
+            alertas = []
+            barra = st.progress(0)
+            estado = st.empty()
 
-    col_prog1.metric("OFAC", f"{len(lista_ofac):,}")
-    col_prog2.metric("ONU", f"{len(lista_onu):,}")
-    col_prog3.metric("UK", f"{len(lista_uk):,}")
+            for i, row in df_clientes.iterrows():
+                estado.text(f"Verificando: {row['nombre']}...")
+                barra.progress((i + 1) / len(df_clientes))
 
-    if lista_ofac or lista_onu or lista_uk:
-        alertas = []
-        barra = st.progress(0)
-        estado = st.empty()
-
-        for i, row in df_clientes.iterrows():
-            estado.text(f"Verificando: {row['nombre']}...")
-            barra.progress((i + 1) / len(df_clientes))
-
-            # OFAC
-            matches_ofac = buscar_en_ofac(row["nombre"], lista_ofac, score_minimo)
-            for m in matches_ofac:
-                alertas.append({
-                    "Fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                    "ID Cliente": row["id"],
-                    "Nombre Cliente": row["nombre"],
-                    "RUT": row["rut"],
-                    "Match Encontrado": m["match"],
-                    "Score %": m["score"],
-                    "Fuente": m["fuente"],
-                    "Tipo": "SANCIÓN OFAC"
-                })
-
-            # ONU
-            for nombre_onu in lista_onu:
-                score = fuzz.token_sort_ratio(row["nombre"].upper(), str(nombre_onu).upper())
-                if score >= score_minimo:
+                for m in buscar_en_ofac(row["nombre"], lista_ofac, score_minimo):
                     alertas.append({
                         "Fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
                         "ID Cliente": row["id"],
                         "Nombre Cliente": row["nombre"],
                         "RUT": row["rut"],
-                        "Match Encontrado": nombre_onu,
-                        "Score %": score,
-                        "Fuente": "ONU Sanctions",
-                        "Tipo": "SANCIÓN ONU"
+                        "Match Encontrado": m["match"],
+                        "Score %": m["score"],
+                        "Fuente": m["fuente"],
+                        "Tipo": "SANCIÓN OFAC"
                     })
-                    break
 
-            # UK
-            for nombre_uk in lista_uk:
-                score = fuzz.token_sort_ratio(row["nombre"].upper(), str(nombre_uk).upper())
-                if score >= score_minimo:
-                    alertas.append({
-                        "Fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                        "ID Cliente": row["id"],
-                        "Nombre Cliente": row["nombre"],
-                        "RUT": row["rut"],
-                        "Match Encontrado": nombre_uk,
-                        "Score %": score,
-                        "Fuente": "UK Sanctions",
-                        "Tipo": "SANCIÓN UK"
-                    })
-                    break
-
-        estado.empty()
-        barra.empty()
-
-        guardar_alertas_listas(alertas)
-        guardar_ejecucion(len(df_clientes), len(alertas), 0, "OK")
-
-        if alertas:
-            df_alertas = pd.DataFrame(alertas)
-            st.error(f"⚠️ {len(alertas)} alerta(s) encontrada(s)")
-            st.dataframe(df_alertas, use_container_width=True)
-            csv = df_alertas.to_csv(index=False).encode("utf-8")
-            st.download_button("📥 Descargar alertas", csv,
-                f"alertas_listas_{datetime.now().strftime('%Y%m%d_%H%M')}.csv", "text/csv")
-        else:
-            st.success("✅ Sin alertas — todos los clientes están limpios")
-
-            if lista_ofac:
-                st.info(f"✅ OFAC cargada: {len(lista_ofac):,} entradas")
-                alertas = []
-                barra = st.progress(0)
-                estado = st.empty()
-
-                for i, row in df_clientes.iterrows():
-                    estado.text(f"Verificando: {row['nombre']}...")
-                    barra.progress((i + 1) / len(df_clientes))
-                    matches = buscar_en_ofac(row["nombre"], lista_ofac, score_minimo)
-                    for m in matches:
+                for nombre_onu in lista_onu:
+                    score = fuzz.token_sort_ratio(row["nombre"].upper(), str(nombre_onu).upper())
+                    if score >= score_minimo:
                         alertas.append({
                             "Fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
                             "ID Cliente": row["id"],
                             "Nombre Cliente": row["nombre"],
                             "RUT": row["rut"],
-                            "Match Encontrado": m["match"],
-                            "Score %": m["score"],
-                            "Fuente": m["fuente"],
-                            "Tipo": "SANCIÓN OFAC"
+                            "Match Encontrado": nombre_onu,
+                            "Score %": score,
+                            "Fuente": "ONU Sanctions",
+                            "Tipo": "SANCIÓN ONU"
                         })
+                        break
 
-                estado.empty()
-                barra.empty()
+                for nombre_uk in lista_uk:
+                    score = fuzz.token_sort_ratio(row["nombre"].upper(), str(nombre_uk).upper())
+                    if score >= score_minimo:
+                        alertas.append({
+                            "Fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                            "ID Cliente": row["id"],
+                            "Nombre Cliente": row["nombre"],
+                            "RUT": row["rut"],
+                            "Match Encontrado": nombre_uk,
+                            "Score %": score,
+                            "Fuente": "UK Sanctions",
+                            "Tipo": "SANCIÓN UK"
+                        })
+                        break
 
-                # Guardar en BD
-                guardar_alertas_listas(alertas)
-                guardar_ejecucion(len(df_clientes), len(alertas), 0, "OK")
+            estado.empty()
+            barra.empty()
 
-                if alertas:
-                    df_alertas = pd.DataFrame(alertas)
-                    st.error(f"⚠️ {len(alertas)} alerta(s) encontrada(s)")
-                    st.dataframe(df_alertas, use_container_width=True)
-                    csv = df_alertas.to_csv(index=False).encode("utf-8")
-                    st.download_button("📥 Descargar alertas", csv,
-                        f"alertas_listas_{datetime.now().strftime('%Y%m%d_%H%M')}.csv", "text/csv")
-                else:
-                    st.success("✅ Sin alertas — todos los clientes están limpios")
+            guardar_alertas_listas(alertas)
+            guardar_ejecucion(len(df_clientes), len(alertas), 0, "OK")
+
+            if alertas:
+                df_alertas = pd.DataFrame(alertas)
+                st.error(f"⚠️ {len(alertas)} alerta(s) encontrada(s)")
+                st.dataframe(df_alertas, use_container_width=True)
+                csv = df_alertas.to_csv(index=False).encode("utf-8")
+                st.download_button("📥 Descargar alertas", csv,
+                    f"alertas_listas_{datetime.now().strftime('%Y%m%d_%H%M')}.csv", "text/csv")
+            else:
+                st.success("✅ Sin alertas — todos los clientes están limpios")
     else:
         st.info("👆 Sube un archivo CSV para comenzar")
         st.code("id,nombre,rut\n001,Juan Pérez,12345678-9\n002,María González,98765432-1")
@@ -254,8 +204,6 @@ with tab2:
 
         if st.button("🚀 Detectar smurfing", type="primary"):
             alertas_smurf = detectar_smurfing(df_tx, umbral, ventana, min_tx, PORCENTAJE_UMBRAL)
-
-            # Guardar en BD
             guardar_alertas_smurfing(alertas_smurf)
             guardar_ejecucion(0, 0, len(alertas_smurf), "OK")
 
@@ -264,7 +212,7 @@ with tab2:
 
             if alertas_smurf:
                 df_smurf = pd.DataFrame(alertas_smurf)
-                st.error(f"⚠️ {len(alertas_smurf)} patrón(es) de smurfing detectado(s)")
+                st.error(f"⚠️ {len(alertas_smurf)} patrón(es) detectado(s)")
                 st.dataframe(df_smurf, use_container_width=True)
                 csv = df_smurf.to_csv(index=False).encode("utf-8")
                 st.download_button("📥 Descargar alertas smurfing", csv,
@@ -276,7 +224,7 @@ with tab2:
         st.code("cliente_id,cliente_nombre,fecha,monto,tipo\n001,Juan Pérez,2026-08-20,9500,deposito")
 
 # ════════════════════════════════════════════════════════
-# TAB 3 — HISTORIAL Y ANÁLISIS
+# TAB 3 — HISTORIAL
 # ════════════════════════════════════════════════════════
 with tab3:
     st.subheader("📊 Historial acumulativo de alertas")
@@ -290,47 +238,47 @@ with tab3:
     tipo_alerta = st.selectbox("Tipo de alerta", ["Todas", "Listas Negras", "Smurfing"])
 
     if st.button("🔎 Consultar historial", type="primary"):
-        fecha_desde_str = fecha_desde.strftime("%d/%m/%Y")
-        fecha_hasta_str = fecha_hasta.strftime("%d/%m/%Y")
+        fecha_desde_str = fecha_desde.strftime("%Y-%m-%d")
+        fecha_hasta_str = fecha_hasta.strftime("%Y-%m-%d")
 
         st.markdown("---")
 
         if tipo_alerta in ["Todas", "Listas Negras"]:
             st.subheader("🔴 Alertas Listas Negras / OFAC")
-            df_hist_listas = obtener_alertas_listas(fecha_desde_str, fecha_hasta_str)
-            if not df_hist_listas.empty:
-                st.error(f"⚠️ {len(df_hist_listas)} alerta(s) en el período")
-                st.dataframe(df_hist_listas, use_container_width=True)
-                csv = df_hist_listas.to_csv(index=False).encode("utf-8")
-                st.download_button("📥 Exportar listas", csv, "historial_listas.csv", "text/csv")
+            df_hist = obtener_alertas_listas(fecha_desde_str, fecha_hasta_str)
+            if not df_hist.empty:
+                st.error(f"⚠️ {len(df_hist)} alerta(s)")
+                st.dataframe(df_hist, use_container_width=True)
+                csv = df_hist.to_csv(index=False).encode("utf-8")
+                st.download_button("📥 Exportar", csv, "historial_listas.csv", "text/csv")
             else:
-                st.success("✅ Sin alertas de listas en este período")
+                st.success("✅ Sin alertas en este período")
 
         if tipo_alerta in ["Todas", "Smurfing"]:
             st.subheader("🟠 Alertas Smurfing")
-            df_hist_smurf = obtener_alertas_smurfing(fecha_desde_str, fecha_hasta_str)
-            if not df_hist_smurf.empty:
-                st.error(f"⚠️ {len(df_hist_smurf)} alerta(s) en el período")
-                st.dataframe(df_hist_smurf, use_container_width=True)
-                csv = df_hist_smurf.to_csv(index=False).encode("utf-8")
-                st.download_button("📥 Exportar smurfing", csv, "historial_smurfing.csv", "text/csv")
+            df_smurf = obtener_alertas_smurfing(fecha_desde_str, fecha_hasta_str)
+            if not df_smurf.empty:
+                st.error(f"⚠️ {len(df_smurf)} alerta(s)")
+                st.dataframe(df_smurf, use_container_width=True)
+                csv = df_smurf.to_csv(index=False).encode("utf-8")
+                st.download_button("📥 Exportar", csv, "historial_smurfing.csv", "text/csv")
             else:
-                st.success("✅ Sin alertas de smurfing en este período")
+                st.success("✅ Sin alertas en este período")
 
         st.markdown("---")
-        st.subheader("📋 Historial de ejecuciones del motor")
+        st.subheader("📋 Historial de ejecuciones")
         df_ejec = obtener_historial()
         if not df_ejec.empty:
             st.dataframe(df_ejec, use_container_width=True)
         else:
-            st.info("Sin ejecuciones registradas aún")
+            st.info("Sin ejecuciones registradas")
 
 # ════════════════════════════════════════════════════════
 # TAB 4 — NOTICIAS ADVERSAS
 # ════════════════════════════════════════════════════════
 with tab4:
     st.subheader("📰 Búsqueda de noticias adversas")
-    
+
     col1, col2 = st.columns(2)
     with col1:
         nombre_busqueda = st.text_input("Nombre del cliente a buscar")
@@ -339,22 +287,20 @@ with tab4:
 
     if st.button("🔎 Buscar noticias adversas", type="primary"):
         if nombre_busqueda:
-            from noticias_adversas import analizar_riesgo_reputacional
             with st.spinner(f"Buscando noticias sobre {nombre_busqueda}..."):
                 resultado = analizar_riesgo_reputacional(nombre_busqueda, dias_busqueda)
-
-            st.markdown("---")
 
             noticias = resultado.get("noticias_adversas", [])
             if noticias:
                 st.error(f"⚠️ {len(noticias)} noticia(s) adversa(s) encontrada(s)")
                 for n in noticias:
                     st.markdown(f"""
-                    **📰 {n['titulo']}**  
-                    🗓️ {n['fecha']} | 📡 {n['fuente']}  
-                    🔗 [Ver noticia]({n['url']})
-                    ---
-                    """)
+**📰 {n['titulo']}**  
+🗓️ {n['fecha']} | 📡 {n['fuente']}  
+🔗 [Ver noticia]({n['url']})
+
+---
+""")
                 csv = pd.DataFrame(noticias).to_csv(index=False).encode("utf-8")
                 st.download_button("📥 Descargar noticias", csv,
                     f"noticias_{nombre_busqueda}_{datetime.now().strftime('%Y%m%d')}.csv", "text/csv")
@@ -362,3 +308,73 @@ with tab4:
                 st.success(f"✅ Sin noticias adversas para {nombre_busqueda}")
         else:
             st.warning("👆 Ingresa un nombre para buscar")
+
+# ════════════════════════════════════════════════════════
+# TAB 5 — KYC / VERIFICACIÓN RUT
+# ════════════════════════════════════════════════════════
+with tab5:
+    st.subheader("🪪 Verificación KYC — Validación de RUT")
+    st.info("Verifica que los RUTs de tus clientes sean válidos y detecta discrepancias contra el SII.")
+
+    archivo_kyc = st.file_uploader("Sube el CSV de clientes", type=["csv"], key="kyc")
+
+    if archivo_kyc:
+        df_kyc = pd.read_csv(archivo_kyc)
+        st.success(f"✅ {len(df_kyc)} clientes cargados")
+        st.dataframe(df_kyc, use_container_width=True)
+
+        if st.button("🪪 Iniciar verificación KYC", type="primary"):
+            alertas_kyc = []
+            barra = st.progress(0)
+            estado = st.empty()
+
+            for i, row in df_kyc.iterrows():
+                estado.text(f"Verificando RUT: {row['rut']} — {row['nombre']}...")
+                barra.progress((i + 1) / len(df_kyc))
+                resultado = verificar_rut(row["rut"])
+
+                if resultado is None:
+                    continue
+
+                if not resultado["valido"]:
+                    alertas_kyc.append({
+                        "Fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                        "ID Cliente": row["id"],
+                        "Nombre Cliente": row["nombre"],
+                        "RUT": row["rut"],
+                        "Nombre SII": "",
+                        "Tipo alerta": "RUT INVÁLIDO",
+                        "Riesgo": "ALTO"
+                    })
+                elif resultado["nombre"] and row["nombre"].upper() not in resultado["nombre"].upper():
+                    alertas_kyc.append({
+                        "Fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                        "ID Cliente": row["id"],
+                        "Nombre Cliente": row["nombre"],
+                        "RUT": row["rut"],
+                        "Nombre SII": resultado["nombre"],
+                        "Tipo alerta": "DISCREPANCIA NOMBRE/RUT",
+                        "Riesgo": "MEDIO"
+                    })
+
+            estado.empty()
+            barra.empty()
+
+            st.markdown("---")
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Total verificados", len(df_kyc))
+            col2.metric("✅ Sin alertas", len(df_kyc) - len(alertas_kyc))
+            col3.metric("⚠️ Con alertas", len(alertas_kyc))
+
+            if alertas_kyc:
+                df_alertas_kyc = pd.DataFrame(alertas_kyc)
+                st.error(f"⚠️ {len(alertas_kyc)} alerta(s) KYC")
+                st.dataframe(df_alertas_kyc, use_container_width=True)
+                csv = df_alertas_kyc.to_csv(index=False).encode("utf-8")
+                st.download_button("📥 Descargar alertas KYC", csv,
+                    f"alertas_kyc_{datetime.now().strftime('%Y%m%d_%H%M')}.csv", "text/csv")
+            else:
+                st.success("✅ Todos los RUTs válidos y sin discrepancias")
+    else:
+        st.info("👆 Sube un CSV de clientes para verificar sus RUTs")
+        st.code("id,nombre,rut\n001,Juan Pérez,12345678-9\n002,María González,98765432-1")
