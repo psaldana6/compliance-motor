@@ -38,10 +38,11 @@ col5.metric("Última ejecución", resumen["ultima_ejecucion"] or "Nunca")
 st.markdown("---")
 
 # ─── TABS ────────────────────────────────────────────────
-tab1, tab2, tab3 = st.tabs([
+tab1, tab2, tab3, tab4 = st.tabs([
     "🔍 Listas Negras / PEP",
     "💸 Smurfing / Fraccionamiento",
-    "📊 Historial y Análisis"
+    "📊 Historial y Análisis",
+    "📰 Noticias Adversas"
 ])
 
 # ════════════════════════════════════════════════════════
@@ -242,3 +243,41 @@ with tab3:
             st.dataframe(df_ejec, use_container_width=True)
         else:
             st.info("Sin ejecuciones registradas aún")
+
+# ════════════════════════════════════════════════════════
+# TAB 4 — NOTICIAS ADVERSAS
+# ════════════════════════════════════════════════════════
+with tab4:
+    st.subheader("📰 Búsqueda de noticias adversas")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        nombre_busqueda = st.text_input("Nombre del cliente a buscar")
+    with col2:
+        dias_busqueda = st.number_input("Días hacia atrás", value=30, step=10)
+
+    if st.button("🔎 Buscar noticias adversas", type="primary"):
+        if nombre_busqueda:
+            from noticias_adversas import analizar_riesgo_reputacional
+            with st.spinner(f"Buscando noticias sobre {nombre_busqueda}..."):
+                resultado = analizar_riesgo_reputacional(nombre_busqueda, dias_busqueda)
+
+            st.markdown("---")
+
+            noticias = resultado.get("noticias_adversas", [])
+            if noticias:
+                st.error(f"⚠️ {len(noticias)} noticia(s) adversa(s) encontrada(s)")
+                for n in noticias:
+                    st.markdown(f"""
+                    **📰 {n['titulo']}**  
+                    🗓️ {n['fecha']} | 📡 {n['fuente']}  
+                    🔗 [Ver noticia]({n['url']})
+                    ---
+                    """)
+                csv = pd.DataFrame(noticias).to_csv(index=False).encode("utf-8")
+                st.download_button("📥 Descargar noticias", csv,
+                    f"noticias_{nombre_busqueda}_{datetime.now().strftime('%Y%m%d')}.csv", "text/csv")
+            else:
+                st.success(f"✅ Sin noticias adversas para {nombre_busqueda}")
+        else:
+            st.warning("👆 Ingresa un nombre para buscar")
