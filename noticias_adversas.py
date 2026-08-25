@@ -171,6 +171,61 @@ def buscar_google_news_rss(nombre, dias=30):
         print(f"⚠️  Error consultando Google News RSS: {e}")
         return []
 
+# Medios chilenos de investigación/finanzas priorizados por el equipo
+# de compliance para debida diligencia reforzada (Circular UAF N°57).
+MEDIOS_CHILENOS_PRIORITARIOS = [
+    "emol.com", "latercera.com", "biobiochile.cl", "cnnchile.com",
+    "df.cl", "pulso.cl", "elmostrador.cl", "ciperchile.cl",
+    "theclinic.cl", "cooperativa.cl", "chvnoticias.cl",
+    "fastcheck.cl", "interferencia.cl",
+]
+
+# ─── GOOGLE NEWS RSS DIRIGIDO — MEDIOS CHILENOS PRIORITARIOS ─
+def buscar_google_news_medios_chile(nombre, dias=30):
+    """
+    Igual que buscar_google_news_rss, pero restringido a un listado
+    curado de medios chilenos de investigación y finanzas (Circular
+    UAF N°57 recomienda debida diligencia reforzada apoyada en fuentes
+    de prensa local especializada, no solo cobertura internacional).
+    Se ejecuta como fuente ADICIONAL, no reemplaza la búsqueda global.
+    """
+    import xml.etree.ElementTree as ET
+
+    filtro_sitios = " OR ".join(f"site:{m}" for m in MEDIOS_CHILENOS_PRIORITARIOS)
+    consulta = f'"{nombre}" ({filtro_sitios})'
+    url = f"https://news.google.com/rss/search?q={quote(consulta)}&hl=es-419&gl=CL&ceid=CL:es"
+
+    try:
+        response = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+        root = ET.fromstring(response.content)
+        fecha_limite = datetime.now(timezone.utc) - timedelta(days=dias)
+
+        resultados = []
+        for item in root.findall(".//item")[:15]:
+            pub_date_raw = item.findtext("pubDate", "")
+            try:
+                fecha_dt = parsedate_to_datetime(pub_date_raw)
+                if fecha_dt.tzinfo is None:
+                    fecha_dt = fecha_dt.replace(tzinfo=timezone.utc)
+            except Exception:
+                fecha_dt = None
+
+            if fecha_dt and fecha_dt < fecha_limite:
+                continue
+
+            fuente_el = item.find("source")
+            resultados.append({
+                "fecha": fecha_dt.strftime("%Y-%m-%d") if fecha_dt else "",
+                "titulo": item.findtext("title", ""),
+                "fuente": fuente_el.text if fuente_el is not None else "Google News",
+                "url": item.findtext("link", ""),
+                "tipo": "NOTICIA ADVERSA (Medios CL priorizados)"
+            })
+        return resultados
+    except Exception as e:
+        print(f"⚠️  Error consultando Google News (medios CL): {e}")
+        return []
+
 # ─── CMF CHILE — ENTIDADES REGULADAS ─────────────────────
 def buscar_en_cmf(nombre):
     """
@@ -231,6 +286,7 @@ def analizar_riesgo_reputacional(nombre, dias=30):
     noticias += buscar_noticias_adversas(nombre, dias)
     noticias += buscar_noticias_gdelt(nombre, dias)
     noticias += buscar_google_news_rss(nombre, dias)
+    noticias += buscar_google_news_medios_chile(nombre, dias)
 
     # Deduplicar por URL (o por título si no hay URL)
     vistos = set()
