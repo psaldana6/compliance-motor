@@ -4,41 +4,95 @@ from dotenv import load_dotenv
 from datetime import datetime
 
 load_dotenv()
+BOOSTR_API_KEY = os.getenv("BOOSTR_API_KEY")  # opcional — solo para cruce de nombre SII
 
-# ─── VERIFICACIÓN RUT CHILE via Boostr ───────────────────
+
+def _calcular_digito_verificador(numero):
+    """
+    Calcula el dígito verificador de un RUT chileno usando el
+    algoritmo oficial módulo 11 — determinístico, no requiere ninguna
+    API externa. numero: parte numérica del RUT (sin DV), como string.
+    """
+    suma = 0
+    multiplicador = 2
+    for digito in reversed(numero):
+        suma += int(digito) * multiplicador
+        multiplicador = multiplicador + 1 if multiplicador < 7 else 2
+    resto = 11 - (suma % 11)
+    if resto == 11:
+        return "0"
+    if resto == 10:
+        return "K"
+    return str(resto)
+
+
+def validar_rut_local(rut):
+    """
+    Valida el formato y dígito verificador de un RUT chileno de forma
+    100% local (algoritmo oficial módulo 11), sin depender de ninguna
+    API externa. Esta es la validación PRINCIPAL y confiable.
+    Devuelve (valido: bool, mensaje: str).
+    """
+    if not rut or not isinstance(rut, str):
+        return False, "RUT vacío o formato inválido"
+
+    limpio = rut.replace(".", "").replace("-", "").replace(" ", "").strip().upper()
+    if len(limpio) < 2:
+        return False, "RUT demasiado corto"
+
+    numero, dv_ingresado = limpio[:-1], limpio[-1]
+    if not numero.isdigit():
+        return False, "La parte numérica del RUT contiene caracteres inválidos"
+
+    dv_calculado = _calcular_digito_verificador(numero)
+    if dv_calculado == dv_ingresado:
+        return True, "RUT válido"
+    return False, f"Dígito verificador incorrecto (esperado: {dv_calculado}, ingresado: {dv_ingresado})"
+
+
+# ─── VERIFICACIÓN RUT CHILE ───────────────────────────────
 def verificar_rut(rut):
     """
-    Verifica si un RUT chileno es válido y obtiene información.
-    Usa la API gratuita de Boostr.
+    Verifica un RUT chileno: primero valida formato/dígito verificador
+    de forma 100% local (algoritmo módulo 11, sin dependencias
+    externas — ver validar_rut_local). Si hay BOOSTR_API_KEY
+    configurada en .env, además intenta cruzar el nombre registrado
+    en el SII (servicio "Obtener el nombre" de Boostr, que requiere
+    API key). Sin key, igual valida el RUT correctamente, solo sin
+    el cruce de nombre.
     """
-    # Limpiar RUT — quitar puntos y guión
-    rut_limpio = rut.replace(".", "").replace("-", "").strip()
-    
-    url = f"https://api.boostr.cl/rut/{rut_limpio}.json"
-    
-    try:
-        response = requests.get(url, timeout=10)
-        
-        if response.status_code == 200:
-            data = response.json()
-            return {
-                "rut": rut,
-                "valido": data.get("status") == "ok",
-                "nombre": data.get("data", {}).get("nombre", ""),
-                "actividades": data.get("data", {}).get("actividades", []),
-                "fuente": "Boostr / SII"
-            }
-        else:
-            return {
-                "rut": rut,
-                "valido": False,
-                "nombre": "",
-                "actividades": [],
-                "fuente": "Boostr / SII"
-            }
-    except Exception as e:
-        print(f"❌ Error verificando RUT {rut}: {e}")
-        return None
+    valido, mensaje_validacion = validar_rut_local(rut)
+
+    resultado = {
+        "rut": rut,
+        "valido": valido,
+        "mensaje": mensaje_validacion,
+        "nombre": "",
+        "actividades": [],
+        "fuente": "Validación local (módulo 11)"
+    }
+
+    if not valido:
+        return resultado
+
+    # Cruce opcional de nombre — solo si hay API key de Boostr
+    if BOOSTR_API_KEY:
+        rut_limpio = rut.replace(".", "").replace("-", "").strip()
+        url = f"https://api.boostr.cl/rut/{rut_limpio}.json"
+        try:
+            response = requests.get(
+                url, timeout=10,
+                headers={"X-API-KEY": BOOSTR_API_KEY}
+            )
+            if response.status_code == 200:
+                data = response.json()
+                resultado["nombre"] = data.get("data", {}).get("nombre", "")
+                resultado["actividades"] = data.get("data", {}).get("actividades", [])
+                resultado["fuente"] = "Validación local + SII (Boostr)"
+        except Exception as e:
+            print(f"⚠️  RUT válido localmente, pero falló el cruce con Boostr: {e}")
+
+    return resultado
 
 # ─── PROVEEDOR DEL ESTADO — API MERCADO PÚBLICO (CHILECOMPRA) ─
 # Ticket de prueba PÚBLICO y OFICIAL de ChileCompra (compartido,
