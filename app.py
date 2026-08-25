@@ -225,7 +225,7 @@ with tab1:
                             })
 
                 if incluir_pep_chile:
-                    for match_pep in buscar_pep_local(row["nombre"], score_minimo):
+                    for match_pep in buscar_pep_local(row["nombre"], score_minimo=max(70, score_minimo - 5)):
                         alertas.append({
                             "Fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
                             "ID Cliente": row["id"],
