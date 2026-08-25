@@ -560,3 +560,19 @@ with tab5:
             st.success(f"✅ Registrado como proveedor del Estado: {resultado_mp['nombre_empresa']} (código {resultado_mp['codigo_empresa']})")
         else:
             st.info(f"ℹ️ {rut_consulta_mp} no aparece registrado como proveedor del Estado")
+
+    st.markdown("---")
+    with st.expander("⚖️ Boletín Concursal — acceso rápido (consulta manual)"):
+        st.caption(
+            "El Boletín Concursal (Superintendencia de Insolvencia y "
+            "Reemprendimiento) publica quiebras, liquidaciones y "
+            "reorganizaciones de personas y empresas (Ley N°20.720). "
+            "Su endpoint de descarga requiere token CSRF y sesión de "
+            "navegador, por lo que no se automatizó — se deja como "
+            "acceso rápido para consulta manual del oficial de "
+            "cumplimiento."
+        )
+        st.markdown("""
+- [Buscar publicaciones — Boletín Concursal](https://www.boletinconcursal.cl/boletin/procedimientos)
+- [Verificación de documentos](https://www.boletinconcursal.cl/boletin/verificacion)
+""")
