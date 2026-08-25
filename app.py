@@ -11,6 +11,7 @@ from database import (
 from fuentes_sanciones import cargar_lista_onu, cargar_lista_uk, cargar_lista_eu, buscar_interpol_red_notices, consultar_riesgo_pais_fatf, FATF_ULTIMA_ACTUALIZACION
 from noticias_adversas import analizar_riesgo_reputacional
 from verificacion_rut import verificar_rut, consultar_proveedor_mercadopublico, consultar_dolar_hoy
+from pep_infoprobidad import descargar_pep_infoprobidad, buscar_pep_local, fecha_ultima_actualizacion_pep
 
 # ─── CONFIGURACIÓN ───────────────────────────────────────
 st.set_page_config(page_title="Motor Compliance", page_icon="🛡️", layout="wide")
@@ -61,6 +62,33 @@ with tab1:
     st.subheader("📂 Cargar lista de clientes")
     archivo = st.file_uploader("Sube el CSV de clientes", type=["csv"], key="clientes")
 
+    with st.expander("🏛️ Base PEP Chile (InfoProbidad) — gestión de caché local"):
+        st.caption(
+            "Fuente oficial (Contraloría/Consejo para la Transparencia) de "
+            "autoridades chilenas — Ministros, Subsecretarios, Senadores, "
+            "Diputados, Alcaldes, Concejales. El dataset es grande, así que "
+            "se descarga a una copia local en vez de consultarse en vivo en "
+            "cada búsqueda. Actualízala periódicamente (la fuente se "
+            "actualiza los martes y viernes)."
+        )
+        ultima_act_pep = fecha_ultima_actualizacion_pep()
+        if ultima_act_pep:
+            st.caption(f"📅 Última actualización local: {ultima_act_pep}")
+        else:
+            st.warning("⚠️ Aún no se ha descargado la base PEP local — actualízala antes de usarla.")
+
+        if st.button("🔄 Actualizar base PEP Chile"):
+            estado_pep = st.empty()
+            with st.spinner("Descargando InfoProbidad (puede tardar 1-2 minutos)..."):
+                exito, mensaje, total = descargar_pep_infoprobidad(
+                    progreso_callback=lambda m: estado_pep.text(m)
+                )
+            estado_pep.empty()
+            if exito:
+                st.success(mensaje)
+            else:
+                st.error(mensaje)
+
     @st.cache_data(ttl=3600)
     def cargar_lista_ofac():
         url = "https://www.treasury.gov/ofac/downloads/sdn.csv"
@@ -85,7 +113,7 @@ with tab1:
         st.dataframe(df_clientes, use_container_width=True)
 
         st.markdown("---")
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
         with col1:
             score_minimo = st.slider("Score mínimo (%)", 50, 100, 85)
         with col2:
@@ -95,6 +123,12 @@ with tab1:
                 "Incluir INTERPOL (notificaciones rojas)", value=False,
                 help="Consulta en vivo por cliente. Es una API pública gratuita, "
                      "pero al ser 1 consulta por cliente puede demorar más con listas grandes."
+            )
+        with col4:
+            incluir_pep_chile = st.checkbox(
+                "Incluir PEP Chile (InfoProbidad, caché local)", value=bool(ultima_act_pep),
+                disabled=not bool(ultima_act_pep),
+                help="Usa la copia local descargada arriba. Rápido, no consulta la fuente en vivo."
             )
 
         if st.button("🚀 Iniciar monitoreo listas", type="primary"):
@@ -189,6 +223,19 @@ with tab1:
                                 "Fuente": "INTERPOL Red Notice",
                                 "Tipo": "NOTIFICACIÓN ROJA INTERPOL"
                             })
+
+                if incluir_pep_chile:
+                    for match_pep in buscar_pep_local(row["nombre"], score_minimo):
+                        alertas.append({
+                            "Fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                            "ID Cliente": row["id"],
+                            "Nombre Cliente": row["nombre"],
+                            "RUT": row["rut"],
+                            "Match Encontrado": f"{match_pep['nombre']} ({match_pep['cargo']})",
+                            "Score %": match_pep["score"],
+                            "Fuente": "PEP Chile (InfoProbidad)",
+                            "Tipo": "PERSONA EXPUESTA POLÍTICAMENTE"
+                        })
 
             estado.empty()
             barra.empty()

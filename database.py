@@ -59,6 +59,18 @@ def inicializar_db():
         )
     """)
 
+    # Tabla PEP Chile (InfoProbidad) — caché local, se refresca manualmente
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS pep_chile (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT,
+            cargo TEXT,
+            institucion TEXT,
+            raw_json TEXT,
+            fecha_actualizacion TEXT
+        )
+    """)
+
     conn.commit()
     conn.close()
     print("✅ Base de datos inicializada")
