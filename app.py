@@ -10,7 +10,7 @@ from database import (
 )
 from fuentes_sanciones import cargar_lista_onu, cargar_lista_uk, cargar_lista_eu, buscar_interpol_red_notices, consultar_riesgo_pais_fatf, FATF_ULTIMA_ACTUALIZACION
 from noticias_adversas import analizar_riesgo_reputacional
-from verificacion_rut import verificar_rut
+from verificacion_rut import verificar_rut, consultar_proveedor_mercadopublico
 
 # ─── CONFIGURACIÓN ───────────────────────────────────────
 st.set_page_config(page_title="Motor Compliance", page_icon="🛡️", layout="wide")
@@ -477,3 +477,22 @@ with tab5:
             st.warning(f"🟡 {resultado_fatf['pais']} — {resultado_fatf['categoria']} (Riesgo MEDIO)")
         else:
             st.success(f"🟢 {pais_consulta} — No listado por FATF (Riesgo BAJO)")
+
+    st.markdown("---")
+    st.subheader("🏛️ Consulta proveedor del Estado (ChileCompra)")
+    st.caption(
+        "Verifica si un RUT está registrado como proveedor del Estado en "
+        "Mercado Público (API oficial de ChileCompra). Usando el ticket de "
+        "prueba público por ahora — para producción real, solicita tu "
+        "propio ticket gratis vía ClaveÚnica y agrégalo como "
+        "MERCADOPUBLICO_TICKET en tu .env."
+    )
+    rut_consulta_mp = st.text_input("RUT de la empresa a consultar (ej: 76.354.771-K)", key="rut_mp")
+    if rut_consulta_mp:
+        resultado_mp = consultar_proveedor_mercadopublico(rut_consulta_mp)
+        if resultado_mp is None:
+            st.error("❌ Error consultando Mercado Público — revisa tu conexión o el ticket configurado")
+        elif resultado_mp["registrado"]:
+            st.success(f"✅ Registrado como proveedor del Estado: {resultado_mp['nombre_empresa']} (código {resultado_mp['codigo_empresa']})")
+        else:
+            st.info(f"ℹ️ {rut_consulta_mp} no aparece registrado como proveedor del Estado")

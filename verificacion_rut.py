@@ -1,5 +1,9 @@
 import requests
+import os
+from dotenv import load_dotenv
 from datetime import datetime
+
+load_dotenv()
 
 # ─── VERIFICACIÓN RUT CHILE via Boostr ───────────────────
 def verificar_rut(rut):
@@ -34,6 +38,41 @@ def verificar_rut(rut):
             }
     except Exception as e:
         print(f"❌ Error verificando RUT {rut}: {e}")
+        return None
+
+# ─── PROVEEDOR DEL ESTADO — API MERCADO PÚBLICO (CHILECOMPRA) ─
+# Ticket de prueba PÚBLICO y OFICIAL de ChileCompra (compartido,
+# limitado). Para producción real, solicita tu propio ticket gratis
+# vía ClaveÚnica en https://api.mercadopublico.cl/modules/Participa.aspx
+# y ponlo en tu .env como MERCADOPUBLICO_TICKET=tu_ticket_real
+TICKET_PRUEBA_MERCADOPUBLICO = "F8537A18-6766-4DEF-9E59-426B4FEE2844"
+MERCADOPUBLICO_TICKET = os.getenv("MERCADOPUBLICO_TICKET", TICKET_PRUEBA_MERCADOPUBLICO)
+
+def consultar_proveedor_mercadopublico(rut):
+    """
+    Verifica si un RUT está registrado como proveedor del Estado en
+    ChileCompra/Mercado Público (api.mercadopublico.cl — API pública
+    oficial y documentada). Devuelve el nombre oficial registrado si
+    existe. NOTA: esto confirma si la empresa es proveedor del Estado,
+    NO indica si está inhabilitada/sancionada (ese dato no tiene un
+    endpoint público confirmado).
+    """
+    url = "https://api.mercadopublico.cl/servicios/v1/Publico/Empresas/BuscarProveedor"
+    params = {"rutempresaproveedor": rut, "ticket": MERCADOPUBLICO_TICKET}
+    try:
+        response = requests.get(url, params=params, timeout=10)
+        data = response.json()
+        if isinstance(data, list) and data:
+            return {
+                "registrado": True,
+                "codigo_empresa": data[0].get("CodigoEmpresa", ""),
+                "nombre_empresa": data[0].get("NombreEmpresa", ""),
+                "fuente": "ChileCompra / Mercado Público"
+            }
+        return {"registrado": False, "codigo_empresa": "", "nombre_empresa": "",
+                "fuente": "ChileCompra / Mercado Público"}
+    except Exception as e:
+        print(f"⚠️  Error consultando Mercado Público: {e}")
         return None
 
 def verificar_lista_clientes(clientes):
