@@ -75,21 +75,32 @@ def descargar_pep_infoprobidad(progreso_callback=None):
     except Exception as e:
         return False, f"Error descargando InfoProbidad: {e}", 0
 
-    # El JSON puede venir como lista directa, o envuelto en una clave
-    # (ej. {"data": [...]} o {"declaraciones": [...]}) — se maneja
-    # ambos casos sin asumir una estructura fija.
-    if isinstance(data, list):
+    # El JSON puede venir como lista directa, o envuelto en 1 o más
+    # niveles de claves (ej. {"data": [...]}, {"value": [...]},
+    # {"result": {"records": [...]}} — patrón común en portales tipo
+    # CKAN/OData). Se busca recursivamente la lista de diccionarios
+    # más grande en toda la estructura, sin asumir un formato fijo.
+    def _buscar_lista_de_dicts(obj, mejor=None):
+        if isinstance(obj, list) and obj and isinstance(obj[0], dict):
+            if mejor is None or len(obj) > len(mejor):
+                mejor = obj
+        elif isinstance(obj, dict):
+            for valor in obj.values():
+                mejor = _buscar_lista_de_dicts(valor, mejor)
+        return mejor
+
+    if isinstance(data, list) and data and isinstance(data[0], dict):
         registros = data
-    elif isinstance(data, dict):
-        registros = None
-        for clave in data:
-            if isinstance(data[clave], list):
-                registros = data[clave]
-                break
-        if registros is None:
-            return False, "Estructura JSON inesperada — no se encontró una lista de registros.", 0
     else:
-        return False, "Respuesta inesperada de InfoProbidad (no es JSON lista/dict).", 0
+        registros = _buscar_lista_de_dicts(data)
+
+    if not registros:
+        pista = ""
+        if isinstance(data, dict):
+            pista = f" Claves de nivel superior encontradas: {list(data.keys())}"
+        elif isinstance(data, list):
+            pista = f" Es una lista de {len(data)} elemento(s), tipo del primero: {type(data[0]).__name__ if data else 'vacía'}"
+        return False, f"No se encontró ninguna lista de registros (diccionarios) en el JSON, ni siquiera anidada.{pista}", 0
 
     reportar(f"Descargados {len(registros)} registros. Guardando en base local...")
 
