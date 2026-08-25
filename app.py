@@ -376,6 +376,21 @@ with tab4:
         else:
             st.warning("👆 Ingresa un nombre para buscar")
 
+    st.markdown("---")
+    with st.expander("⚖️ CMF — Procesos sancionatorios activos (accesos rápidos)"):
+        st.caption(
+            "El buscador de sanciones de la CMF no tiene API pública — es un "
+            "formulario web. Estos son accesos directos a los 3 procesos "
+            "sancionatorios/supervisores activos publicados por la CMF, para "
+            "revisión manual del oficial de cumplimiento."
+        )
+        st.markdown("""
+- [Proceso Sancionatorio — Larraín Vial Activos AGF](https://www.cmfchile.cl/portal/principal/623/w4-propertyvalue-48726.html)
+- [Proceso Supervisor — Grupo STF (STF Capital Corredores de Bolsa)](https://www.cmfchile.cl/portal/principal/623/w4-propertyvalue-48727.html)
+- [Proceso Supervisor — Sartor AGF](https://www.cmfchile.cl/portal/principal/623/w4-propertyvalue-48728.html)
+- [Buscador general de sanciones CMF (formulario manual)](https://www.cmfchile.cl/institucional/sanciones/sanciones_mercados.php)
+""")
+
 # ════════════════════════════════════════════════════════
 # TAB 5 — KYC / VERIFICACIÓN RUT
 # ════════════════════════════════════════════════════════
