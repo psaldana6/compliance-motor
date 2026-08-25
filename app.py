@@ -115,7 +115,7 @@ with tab1:
         st.dataframe(df_clientes, use_container_width=True)
 
         st.markdown("---")
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4, col5 = st.columns(5)
         with col1:
             score_minimo = st.slider("Score mínimo (%)", 50, 100, 85)
         with col2:
@@ -131,6 +131,14 @@ with tab1:
                 "Incluir PEP Chile (InfoProbidad, caché local)", value=bool(ultima_act_pep),
                 disabled=not bool(ultima_act_pep),
                 help="Usa la copia local descargada arriba. Rápido, no consulta la fuente en vivo."
+            )
+        with col5:
+            verificar_res = st.checkbox(
+                "Verificar Registro de Empresas (informativo, requiere columna RUT)",
+                value=False, disabled=not bool(fecha_ultima_actualizacion_res()),
+                help="No es una alerta de riesgo — solo confirma si el cliente aparece "
+                     "registrado como empresa vía 'Empresa en un Día'. Se muestra aparte "
+                     "de las alertas. Requiere haber actualizado la base en la pestaña KYC."
             )
 
         if st.button("🚀 Iniciar monitoreo listas", type="primary"):
@@ -254,6 +262,33 @@ with tab1:
                     f"alertas_listas_{datetime.now().strftime('%Y%m%d_%H%M')}.csv", "text/csv")
             else:
                 st.success("✅ Sin alertas — todos los clientes están limpios")
+
+            if verificar_res:
+                if "rut" not in df_clientes.columns:
+                    st.warning("⚠️ El CSV no tiene columna 'rut' — no se pudo verificar el Registro de Empresas.")
+                else:
+                    coincidencias_res = []
+                    for _, row in df_clientes.iterrows():
+                        for match in buscar_empresa_res(str(row["rut"])):
+                            coincidencias_res.append({
+                                "ID Cliente": row["id"],
+                                "Nombre Cliente": row["nombre"],
+                                "RUT": row["rut"],
+                                "Razón Social (Registro)": match["razon_social"],
+                                "Fecha Constitución": match["fecha_constitucion"],
+                                "Año Origen": match["anio_origen"],
+                            })
+                    st.markdown("---")
+                    st.subheader("🏢 Registro de Empresas (informativo — no es alerta de riesgo)")
+                    if coincidencias_res:
+                        st.info(f"ℹ️ {len(coincidencias_res)} cliente(s) encontrado(s) en el Régimen Simplificado")
+                        st.dataframe(pd.DataFrame(coincidencias_res), use_container_width=True)
+                    else:
+                        st.caption(
+                            "Ningún cliente de este CSV aparece en el Régimen Simplificado — "
+                            "recuerda que esto NO indica que las empresas no existan, solo que "
+                            "no se constituyeron por esa vía específica (ver limitaciones en pestaña KYC)."
+                        )
     else:
         st.info("👆 Sube un archivo CSV para comenzar")
         st.code("id,nombre,rut\n001,Juan Pérez,12345678-9\n002,María González,98765432-1")
