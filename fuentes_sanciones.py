@@ -125,6 +125,47 @@ def buscar_interpol_red_notices(nombre):
         print(f"⚠️  Error consultando INTERPOL: {e}")
         return []
 
+# ─── 6. FATF/GAFI — PAÍSES DE ALTO RIESGO (LISTA ESTÁTICA) ─
+# El FATF/GAFI NO publica una API — solo páginas web, actualizadas
+# 3 veces al año en sus plenarios. Por eso esta lista está embebida
+# en el código (no es una consulta en vivo) y debe revisarse
+# manualmente contra https://www.fatf-gafi.org/en/countries/black-and-grey-lists.html
+# tras cada plenario (~febrero, junio, octubre).
+FATF_ULTIMA_ACTUALIZACION = "19 de junio de 2026"
+
+# Lista negra — "High-Risk Jurisdictions subject to a Call for Action"
+FATF_LISTA_NEGRA = ["Corea del Norte", "Irán", "Myanmar"]
+
+# Lista gris — "Jurisdictions under Increased Monitoring"
+FATF_LISTA_GRIS = [
+    "Argelia", "Angola", "Bolivia", "Bulgaria", "Camerún",
+    "Costa de Marfil", "República Democrática del Congo", "Haití",
+    "Kenia", "Laos", "Líbano", "Mónaco", "Namibia", "Nepal",
+    "Sudán del Sur", "Siria", "Venezuela", "Vietnam",
+    "Islas Vírgenes Británicas", "Yemen", "Bosnia y Herzegovina", "Irak",
+    "Kuwait", "Papúa Nueva Guinea",
+]
+
+def consultar_riesgo_pais_fatf(pais):
+    """
+    Consulta si un país está en lista negra o gris del FATF/GAFI.
+    Lista estática embebida (ver FATF_ULTIMA_ACTUALIZACION) —
+    NO es una consulta en vivo, ya que el FATF no ofrece API.
+    Útil para debida diligencia reforzada según nacionalidad/país
+    de constitución del cliente (Circular UAF N°57).
+    """
+    pais_norm = pais.strip().lower()
+    for p in FATF_LISTA_NEGRA:
+        if p.lower() == pais_norm:
+            return {"riesgo": "ALTO", "categoria": "Lista negra FATF (Call for Action)",
+                    "pais": p, "actualizado": FATF_ULTIMA_ACTUALIZACION}
+    for p in FATF_LISTA_GRIS:
+        if p.lower() == pais_norm:
+            return {"riesgo": "MEDIO", "categoria": "Lista gris FATF (Increased Monitoring)",
+                    "pais": p, "actualizado": FATF_ULTIMA_ACTUALIZACION}
+    return {"riesgo": "BAJO", "categoria": "No listado por FATF", "pais": pais,
+            "actualizado": FATF_ULTIMA_ACTUALIZACION}
+
 # ─── MOTOR DE BÚSQUEDA MULTI-FUENTE ──────────────────────
 def buscar_todas_las_fuentes(nombre, score_minimo=SCORE_MINIMO):
     """Busca un nombre en todas las fuentes disponibles"""

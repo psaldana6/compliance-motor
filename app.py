@@ -8,7 +8,7 @@ from database import (
     guardar_ejecucion, obtener_alertas_listas, obtener_alertas_smurfing,
     obtener_historial, obtener_resumen
 )
-from fuentes_sanciones import cargar_lista_onu, cargar_lista_uk, cargar_lista_eu, buscar_interpol_red_notices
+from fuentes_sanciones import cargar_lista_onu, cargar_lista_uk, cargar_lista_eu, buscar_interpol_red_notices, consultar_riesgo_pais_fatf, FATF_ULTIMA_ACTUALIZACION
 from noticias_adversas import analizar_riesgo_reputacional
 from verificacion_rut import verificar_rut
 
@@ -445,3 +445,20 @@ with tab5:
     else:
         st.info("👆 Sube un CSV de clientes para verificar sus RUTs")
         st.code("id,nombre,rut\n001,Juan Pérez,12345678-9\n002,María González,98765432-1")
+
+    st.markdown("---")
+    st.subheader("🌍 Consulta de riesgo país (FATF/GAFI)")
+    st.caption(
+        f"Lista negra y gris del FATF, embebida en el código (el FATF no ofrece API). "
+        f"Última actualización aplicada: {FATF_ULTIMA_ACTUALIZACION}. "
+        f"Revisar manualmente tras cada plenario del FATF (feb/jun/oct)."
+    )
+    pais_consulta = st.text_input("País de residencia o constitución del cliente", key="pais_fatf")
+    if pais_consulta:
+        resultado_fatf = consultar_riesgo_pais_fatf(pais_consulta)
+        if resultado_fatf["riesgo"] == "ALTO":
+            st.error(f"🔴 {resultado_fatf['pais']} — {resultado_fatf['categoria']} (Riesgo ALTO)")
+        elif resultado_fatf["riesgo"] == "MEDIO":
+            st.warning(f"🟡 {resultado_fatf['pais']} — {resultado_fatf['categoria']} (Riesgo MEDIO)")
+        else:
+            st.success(f"🟢 {pais_consulta} — No listado por FATF (Riesgo BAJO)")
