@@ -231,7 +231,7 @@ with tab1:
                             "ID Cliente": row["id"],
                             "Nombre Cliente": row["nombre"],
                             "RUT": row["rut"],
-                            "Match Encontrado": f"{match_pep['nombre']} ({match_pep['cargo']})",
+                            "Match Encontrado": f"{match_pep['nombre']} — {match_pep['institucion']}",
                             "Score %": match_pep["score"],
                             "Fuente": "PEP Chile (InfoProbidad)",
                             "Tipo": "PERSONA EXPUESTA POLÍTICAMENTE"

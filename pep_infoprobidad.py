@@ -34,18 +34,35 @@ from rapidfuzz import fuzz
 DB_PATH = "compliance_motor.db"
 URL_DECLARACIONES = "https://datos.cplt.cl/catalogos/infoprobidad/jsondeclaraciones"
 
-# Candidatos de nombres de campo — el parser prueba estos en orden
-# porque no se pudo confirmar el esquema exacto del JSON de antemano.
-CAMPOS_NOMBRE = ["nombre", "Nombre", "nombreAutoridad", "NombreAutoridad", "name"]
-CAMPOS_CARGO = ["cargo", "Cargo", "autoridad", "Autoridad", "tipoAutoridad", "TipoAutoridad"]
-CAMPOS_INSTITUCION = ["institucion", "Institucion", "organismo", "Organismo", "entidad", "Entidad"]
+# Esquema confirmado del JSON real de InfoProbidad (catálogo
+# "declaraciones"): el nombre viene partido en 3 campos.
+CAMPOS_NOMBRE_PILA = ["Nombre", "nombre"]
+CAMPOS_AP_PATERNO = ["ApPaterno", "apPaterno"]
+CAMPOS_AP_MATERNO = ["ApMaterno", "apMaterno"]
+CAMPOS_CARGO = ["Cargo", "cargo", "autoridad", "Autoridad"]
+CAMPOS_INSTITUCION = ["Institucion", "institucion", "organismo", "Organismo"]
+
+
+def _desenvolver(valor):
+    """
+    Los valores del JSON de InfoProbidad vienen envueltos como
+    {"type": "literal", "value": "..."} (formato tipo RDF/SPARQL).
+    Esta función extrae el valor real, sea que venga envuelto o plano.
+    """
+    if isinstance(valor, dict) and "value" in valor:
+        return str(valor["value"])
+    if valor is None:
+        return ""
+    return str(valor)
 
 
 def _extraer_campo(registro, candidatos):
     """Prueba varios nombres de campo posibles y devuelve el primero que exista."""
     for campo in candidatos:
         if campo in registro and registro[campo]:
-            return str(registro[campo])
+            valor = _desenvolver(registro[campo])
+            if valor:
+                return valor
     return ""
 
 
@@ -112,7 +129,10 @@ def descargar_pep_infoprobidad(progreso_callback=None):
     for r in registros:
         if not isinstance(r, dict):
             continue
-        nombre = _extraer_campo(r, CAMPOS_NOMBRE)
+        nombre_pila = _extraer_campo(r, CAMPOS_NOMBRE_PILA)
+        ap_paterno = _extraer_campo(r, CAMPOS_AP_PATERNO)
+        ap_materno = _extraer_campo(r, CAMPOS_AP_MATERNO)
+        nombre = " ".join(p for p in [nombre_pila, ap_paterno, ap_materno] if p)
         cargo = _extraer_campo(r, CAMPOS_CARGO)
         institucion = _extraer_campo(r, CAMPOS_INSTITUCION)
         filas.append((
