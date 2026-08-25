@@ -239,6 +239,8 @@ with tab2:
                     })
         return alertas
 
+    COLUMNAS_REQUERIDAS_TX = ["fecha", "cliente_id", "cliente_nombre", "monto"]
+
     col1, col2, col3 = st.columns(3)
     with col1:
         umbral = st.number_input("Umbral de reporte ($)", value=10000, step=1000)
@@ -249,10 +251,20 @@ with tab2:
 
     if archivo_tx:
         df_tx = pd.read_csv(archivo_tx)
+        # Normaliza nombres de columna (minúsculas, sin espacios extra)
+        # para tolerar variaciones como "Fecha" o " fecha " en el CSV.
+        df_tx.columns = [c.strip().lower() for c in df_tx.columns]
         st.success(f"✅ {len(df_tx)} transacciones cargadas")
         st.dataframe(df_tx, use_container_width=True)
 
-        if st.button("🚀 Detectar smurfing", type="primary"):
+        faltantes = [c for c in COLUMNAS_REQUERIDAS_TX if c not in df_tx.columns]
+        if faltantes:
+            st.error(
+                f"❌ El CSV no tiene la(s) columna(s) requerida(s): {', '.join(faltantes)}.\n\n"
+                f"Columnas encontradas: {', '.join(df_tx.columns)}\n\n"
+                f"Formato esperado: cliente_id,cliente_nombre,fecha,monto,tipo"
+            )
+        elif st.button("🚀 Detectar smurfing", type="primary"):
             alertas_smurf = detectar_smurfing(df_tx, umbral, ventana, min_tx, PORCENTAJE_UMBRAL)
             guardar_alertas_smurfing(alertas_smurf)
             guardar_ejecucion(0, 0, len(alertas_smurf), "OK")

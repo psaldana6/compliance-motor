@@ -80,31 +80,43 @@ def buscar_noticias_gdelt(nombre, dias=30):
     Docs: https://blog.gdeltproject.org/gdelt-doc-2-0-api-debuts/
     """
     dias = max(1, min(dias, 90))  # GDELT limita el rango de búsqueda
-    query = f'"{nombre}" ({" OR ".join(TERMINOS_RIESGO[:8])})'
+    # GDELT rechaza queries booleanas muy largas (responde HTML, no JSON).
+    # Usamos solo el nombre entre comillas — más resultados, y filtramos
+    # por términos de riesgo del lado del cliente, igual que hace el
+    # análisis final al combinar todas las fuentes.
+    query = f'"{nombre}"'
 
     url = "https://api.gdeltproject.org/api/v2/doc/doc"
     params = {
         "query": query,
         "mode": "ArtList",
-        "maxrecords": 20,
+        "maxrecords": 30,
         "format": "json",
         "timespan": f"{dias}d",
         "sort": "DateDesc",
     }
 
     try:
-        response = requests.get(url, params=params, timeout=15)
-        if not response.text.strip():
+        response = requests.get(url, params=params, timeout=15,
+                                 headers={"User-Agent": "Mozilla/5.0"})
+        texto = response.text.strip()
+        if not texto or not texto.startswith("{"):
+            # GDELT devuelve HTML/vacío cuando la query es rechazada o
+            # no hay resultados — no es un error crítico, solo no hay datos.
             return []
         data = response.json()
         articulos = data.get("articles", [])
         resultados = []
         for art in articulos:
+            titulo = art.get("title", "")
+            # Filtro de riesgo del lado del cliente (case-insensitive)
+            if not any(t.lower() in titulo.lower() for t in TERMINOS_RIESGO):
+                continue
             seendate = art.get("seendate", "")  # formato YYYYMMDDTHHMMSSZ
             fecha = f"{seendate[:4]}-{seendate[4:6]}-{seendate[6:8]}" if len(seendate) >= 8 else ""
             resultados.append({
                 "fecha": fecha,
-                "titulo": art.get("title", ""),
+                "titulo": titulo,
                 "fuente": art.get("domain", ""),
                 "url": art.get("url", ""),
                 "tipo": "NOTICIA ADVERSA (GDELT)"
