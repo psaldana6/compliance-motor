@@ -175,6 +175,14 @@ def buscar_pep_local(nombre, score_minimo=85):
     """
     Busca un nombre contra la copia local de PEP chilenos (fuzzy match).
     Rápido porque consulta SQLite local, no la fuente en vivo.
+
+    Usa token_set_ratio (no token_sort_ratio): los nombres legales
+    completos de InfoProbidad incluyen 2 apellidos (ej. "GABRIEL BORIC
+    FONT"), mientras que un CRM de clientes suele tener solo nombre +
+    1 apellido (ej. "Gabriel Boric"). token_sort_ratio penaliza esa
+    palabra extra y puede dejar coincidencias reales bajo el umbral;
+    token_set_ratio está diseñado para tolerar justamente ese caso.
+
     Devuelve lista de matches: [{nombre, cargo, institucion, score}, ...]
     """
     conn = sqlite3.connect(DB_PATH)
@@ -185,7 +193,7 @@ def buscar_pep_local(nombre, score_minimo=85):
 
     resultados = []
     for nombre_pep, cargo, institucion in registros:
-        score = fuzz.token_sort_ratio(nombre.upper(), nombre_pep.upper())
+        score = fuzz.token_set_ratio(nombre.upper(), nombre_pep.upper())
         if score >= score_minimo:
             resultados.append({
                 "nombre": nombre_pep, "cargo": cargo,
