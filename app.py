@@ -12,6 +12,8 @@ from fuentes_sanciones import cargar_lista_onu, cargar_lista_uk, cargar_lista_eu
 from noticias_adversas import analizar_riesgo_reputacional
 from verificacion_rut import verificar_rut, consultar_proveedor_mercadopublico, consultar_dolar_hoy
 from pep_infoprobidad import descargar_pep_infoprobidad, buscar_pep_local, fecha_ultima_actualizacion_pep
+from res_simplificado import descargar_res_simplificado, buscar_empresa_res, fecha_ultima_actualizacion_res
+import res_simplificado
 
 # ─── CONFIGURACIÓN ───────────────────────────────────────
 st.set_page_config(page_title="Motor Compliance", page_icon="🛡️", layout="wide")
@@ -576,3 +578,51 @@ with tab5:
 - [Buscar publicaciones — Boletín Concursal](https://www.boletinconcursal.cl/boletin/procedimientos)
 - [Verificación de documentos](https://www.boletinconcursal.cl/boletin/verificacion)
 """)
+
+    st.markdown("---")
+    with st.expander("🏢 Registro de Empresas y Sociedades — Régimen Simplificado (caché local)"):
+        st.error(
+            "⚠️ **Cobertura limitada — leer antes de usar:**\n\n"
+            "- Solo incluye empresas constituidas por **\"Empresa en un Día\"** "
+            "(régimen simplificado/online, Ley N°20.659).\n"
+            "- **NO incluye** empresas constituidas de forma tradicional "
+            "(escritura pública ante notario) — la mayoría de las empresas "
+            "grandes o antiguas caen en esta categoría y **no aparecerán aquí**.\n"
+            f"- Los datos cubren como máximo los **últimos {res_simplificado.ANOS_RECIENTES_A_DESCARGAR} años** "
+            "disponibles en la fuente (se recalcula automáticamente cada vez "
+            "que actualizas — no necesitas ajustar años a mano).\n\n"
+            "**Un resultado 'no encontrado' NO significa que la empresa no "
+            "exista o no esté vigente** — solo que no se constituyó por "
+            "esta vía específica. Fuente: datos.gob.cl (Ministerio de Hacienda)."
+        )
+        ultima_act_res = fecha_ultima_actualizacion_res()
+        if ultima_act_res:
+            st.caption(f"📅 Última actualización local: {ultima_act_res}")
+        else:
+            st.warning("⚠️ Aún no se ha descargado esta base local.")
+
+        if st.button(f"🔄 Actualizar Registro de Empresas (últimos {res_simplificado.ANOS_RECIENTES_A_DESCARGAR} años disponibles)"):
+            estado_res = st.empty()
+            with st.spinner("Descargando datos.gob.cl..."):
+                exito_res, mensaje_res, total_res = descargar_res_simplificado(
+                    progreso_callback=lambda m: estado_res.text(m)
+                )
+            estado_res.empty()
+            if exito_res:
+                st.success(mensaje_res)
+            else:
+                st.error(mensaje_res)
+
+        rut_consulta_res = st.text_input("RUT de la empresa a consultar", key="rut_res")
+        if rut_consulta_res:
+            resultados_res = buscar_empresa_res(rut_consulta_res)
+            if resultados_res:
+                for r in resultados_res:
+                    st.success(f"✅ Encontrada en Régimen Simplificado: {r['razon_social']} — constituida {r['fecha_constitucion']} ({r['anio_origen']})")
+            else:
+                st.info(
+                    f"ℹ️ {rut_consulta_res} no aparece en el Registro Simplificado. "
+                    "Esto NO confirma que la empresa no exista — puede estar "
+                    "constituida de forma tradicional (no cubierta por esta fuente) "
+                    "o fuera del rango de años descargado."
+                )
