@@ -97,7 +97,7 @@ def buscar_noticias_gdelt(nombre, dias=30):
     }
 
     try:
-        response = requests.get(url, params=params, timeout=15,
+        response = requests.get(url, params=params, timeout=30,
                                  headers={"User-Agent": "Mozilla/5.0"})
         texto = response.text.strip()
         if not texto or not texto.startswith("{"):
