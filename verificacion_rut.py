@@ -48,6 +48,25 @@ def verificar_rut(rut):
 TICKET_PRUEBA_MERCADOPUBLICO = "F8537A18-6766-4DEF-9E59-426B4FEE2844"
 MERCADOPUBLICO_TICKET = os.getenv("MERCADOPUBLICO_TICKET", TICKET_PRUEBA_MERCADOPUBLICO)
 
+def consultar_dolar_hoy():
+    """
+    Consulta el valor del dólar observado del día vía mindicador.cl
+    (API pública gratuita, sin key, datos oficiales del Banco Central
+    de Chile). Se usa para calcular el equivalente en CLP del umbral
+    legal de Reporte de Operaciones en Efectivo — USD 10.000 según
+    Ley N°19.913 modificada por Ley N°20.818.
+    """
+    try:
+        response = requests.get("https://mindicador.cl/api/dolar", timeout=10)
+        data = response.json()
+        serie = data.get("serie", [])
+        if serie:
+            return {"valor": serie[0]["valor"], "fecha": serie[0]["fecha"][:10]}
+        return None
+    except Exception as e:
+        print(f"⚠️  Error consultando dólar (mindicador.cl): {e}")
+        return None
+
 def consultar_proveedor_mercadopublico(rut):
     """
     Verifica si un RUT está registrado como proveedor del Estado en

@@ -10,7 +10,7 @@ from database import (
 )
 from fuentes_sanciones import cargar_lista_onu, cargar_lista_uk, cargar_lista_eu, buscar_interpol_red_notices, consultar_riesgo_pais_fatf, FATF_ULTIMA_ACTUALIZACION
 from noticias_adversas import analizar_riesgo_reputacional
-from verificacion_rut import verificar_rut, consultar_proveedor_mercadopublico
+from verificacion_rut import verificar_rut, consultar_proveedor_mercadopublico, consultar_dolar_hoy
 
 # ─── CONFIGURACIÓN ───────────────────────────────────────
 st.set_page_config(page_title="Motor Compliance", page_icon="🛡️", layout="wide")
@@ -241,9 +241,26 @@ with tab2:
 
     COLUMNAS_REQUERIDAS_TX = ["fecha", "cliente_id", "cliente_nombre", "monto"]
 
+    # El umbral legal del Reporte de Operaciones en Efectivo (ROE) es
+    # USD 10.000 o su equivalente en pesos según el dólar del día
+    # (Ley N°19.913, modificada por Ley N°20.818 — antes era UF 450).
+    # Se calcula el equivalente en CLP con el dólar observado de hoy
+    # vía mindicador.cl (API pública, sin key, datos del Banco Central).
+    dolar_info = consultar_dolar_hoy()
+    if dolar_info:
+        umbral_legal_clp = round(dolar_info["valor"] * 10000)
+        st.caption(
+            f"💵 Umbral legal ROE: USD 10.000 (Ley 19.913/20.818) ≈ "
+            f"${umbral_legal_clp:,} CLP al dólar de hoy (${dolar_info['valor']:,.2f}, "
+            f"{dolar_info['fecha']})"
+        )
+    else:
+        umbral_legal_clp = 9_500_000  # fallback aproximado si falla la consulta
+        st.caption("⚠️ No se pudo obtener el dólar del día — usando valor de referencia aproximado")
+
     col1, col2, col3 = st.columns(3)
     with col1:
-        umbral = st.number_input("Umbral de reporte ($)", value=10000, step=1000)
+        umbral = st.number_input("Umbral de reporte ($ CLP)", value=umbral_legal_clp, step=100000)
     with col2:
         ventana = st.number_input("Ventana de días", value=7, step=1)
     with col3:
