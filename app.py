@@ -615,6 +615,21 @@ with tab5:
 """)
 
     st.markdown("---")
+    with st.expander("⚖️ Poder Judicial y Diario Oficial — accesos rápidos (consulta manual)"):
+        st.caption(
+            "El buscador de causas del Poder Judicial usa CAPTCHA (protección "
+            "anti-scraping deliberada), y el Diario Oficial no tiene API "
+            "pública documentada — ambos se dejan como acceso rápido para "
+            "consulta manual del oficial de cumplimiento, en vez de "
+            "automatizarse."
+        )
+        st.markdown("""
+- [Consulta de Causas — Poder Judicial](https://www2.pjud.cl/consulta-de-causas2)
+- [Oficina Judicial Virtual](https://oficinajudicialvirtual.pjud.cl/home/index.php)
+- [Diario Oficial — Edición Electrónica](https://www.diariooficial.interior.gob.cl/edicionelectronica/index.php)
+""")
+
+    st.markdown("---")
     with st.expander("🏢 Registro de Empresas y Sociedades — Régimen Simplificado (caché local)"):
         st.error(
             "⚠️ **Cobertura limitada — leer antes de usar:**\n\n"
