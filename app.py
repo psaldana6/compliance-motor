@@ -12,6 +12,7 @@ from fuentes_sanciones import cargar_lista_onu, cargar_lista_uk, cargar_lista_eu
 from noticias_adversas import analizar_riesgo_reputacional
 from verificacion_rut import verificar_rut, consultar_proveedor_mercadopublico, consultar_dolar_hoy
 from pep_infoprobidad import descargar_pep_infoprobidad, buscar_pep_local, fecha_ultima_actualizacion_pep
+from pep_internacional_wikidata import buscar_pep_internacional
 from res_simplificado import descargar_res_simplificado, buscar_empresa_res, fecha_ultima_actualizacion_res
 import res_simplificado
 
@@ -161,7 +162,7 @@ with tab1:
         st.dataframe(df_clientes, use_container_width=True)
 
         st.markdown("---")
-        col1, col2, col3, col4, col5 = st.columns(5)
+        col1, col2, col3, col4, col5, col6 = st.columns(6)
         with col1:
             score_minimo = st.slider("Score mínimo (%)", 50, 100, 85)
         with col2:
@@ -185,6 +186,13 @@ with tab1:
                 help="No es una alerta de riesgo — solo confirma si el cliente aparece "
                      "registrado como empresa vía 'Empresa en un Día'. Se muestra aparte "
                      "de las alertas. Requiere haber actualizado la base en la pestaña KYC."
+            )
+        with col6:
+            incluir_pep_internacional = st.checkbox(
+                "Incluir PEP Internacional (Wikidata)", value=False,
+                help="Consulta en vivo por cliente (2 llamadas por candidato encontrado, "
+                     "puede ser lento con listas grandes). Cubre políticos internacionales "
+                     "de alto perfil — no reemplaza un proveedor comercial de PEP."
             )
 
         if st.button("🚀 Iniciar monitoreo listas", type="primary"):
@@ -291,6 +299,20 @@ with tab1:
                             "Score %": match_pep["score"],
                             "Fuente": "PEP Chile (InfoProbidad)",
                             "Tipo": "PERSONA EXPUESTA POLÍTICAMENTE"
+                        })
+
+                if incluir_pep_internacional:
+                    for match_pep_intl in buscar_pep_internacional(row["nombre"]):
+                        cargos_txt = ", ".join(match_pep_intl["cargos"][:3])
+                        alertas.append({
+                            "Fecha": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                            "ID Cliente": row["id"],
+                            "Nombre Cliente": row["nombre"],
+                            "RUT": row["rut"],
+                            "Match Encontrado": f"{match_pep_intl['nombre']} ({match_pep_intl['pais']}) — {cargos_txt}",
+                            "Score %": "N/A",
+                            "Fuente": "PEP Internacional (Wikidata)",
+                            "Tipo": "PERSONA EXPUESTA POLÍTICAMENTE (INTERNACIONAL)"
                         })
 
             estado.empty()
