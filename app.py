@@ -27,17 +27,52 @@ inicializar_db()
 
 st.title("🛡️ Motor de Compliance - Monitoreo Integral")
 
-with st.expander("ℹ️ Marco normativo cubierto por cada módulo"):
+with st.expander("ℹ️ Marco normativo cubierto — matriz completa (Ley 19.913, Ley 20.393, Circular UAF, NCG 571)"):
     st.markdown("""
-    | Módulo | Obligación / referencia normativa |
-    |---|---|
-    | 🔍 Listas Negras / PEP | Debida diligencia y screening contra listas restrictivas (OFAC, ONU, UE, UK, INTERPOL) — art. 3° y 4° Ley N°19.913, exigido a Sujetos Obligados del mercado de valores por **Circular UAF N°57** (y N°49 para corredoras de bolsa/intermediarios de valores) |
-    | 💸 Smurfing / Fraccionamiento | Detección de fraccionamiento de operaciones — señal de alerta típica de **lavado de activos**, delito base de la **Ley N°20.393** (responsabilidad penal de las personas jurídicas) |
-    | 📰 Noticias Adversas | Debida diligencia reforzada (EDD) para clientes de mayor riesgo — **Circular UAF N°57**, arts. sobre clientes PEP y de riesgo |
-    | 🪪 KYC / Verificación RUT | Identificación y verificación de clientes — art. 3° Ley N°19.913 y normativa CMF sobre conozca a su cliente |
+    #### Cobertura por obligación legal específica
 
-    Este motor apoya el cumplimiento normativo, pero **no reemplaza el juicio del Oficial de Cumplimiento** ni constituye asesoría legal. Las alertas deben ser revisadas y, si corresponde, derivar en un Reporte de Operación Sospechosa (ROS) a la UAF.
+    | Obligación legal | Norma | Cómo lo cubre el hub |
+    |---|---|---|
+    | Identificación y verificación de clientes ("conozca a su cliente") | Art. 3° Ley N°19.913 | 🪪 KYC — validación de RUT (algoritmo local) |
+    | Screening contra listas de sanciones internacionales | Art. 3°/4° Ley N°19.913, Circular UAF N°57/62 | 🔍 OFAC, ONU, UK, Unión Europea |
+    | Screening de Personas Expuestas Políticamente (PEP) | Circular UAF N°57/62, Cap. 1-16 RAN (CMF) | 🔍 PEP Chile (InfoProbidad) — caché local |
+    | Debida diligencia reforzada por país de riesgo | Circular UAF N°57, estándar GAFI | 🌍 Consulta FATF/GAFI (lista negra/gris) |
+    | Debida diligencia reforzada — noticias adversas | Circular UAF N°57 | 📰 GDELT, Google News (global + medios CL) |
+    | Detección de fraccionamiento de operaciones (smurfing) | Delito base **lavado de activos** — Ley N°20.393, art. 5° Ley 19.913 (umbral USD 10.000) | 💸 Smurfing — umbral legal calculado en vivo |
+    | Verificación de vínculos con el Estado / conflictos de interés | Buenas prácticas KYC corporativo | 🏛️ ChileCompra (proveedor del Estado) |
+    | Verificación de vigencia de empresas (régimen simplificado) | Debida diligencia de personas jurídicas | 🏢 Registro de Empresas y Sociedades |
+    | Notificaciones de personas buscadas internacionalmente | Debida diligencia reforzada | 🚨 INTERPOL Red Notices |
+    | Procesos sancionatorios del regulador (CMF) | Cap. 3 NCG N°571 (Compendio Bolsas e Intermediarios) | ⚖️ Accesos directos a procesos activos CMF |
+    | Estado de insolvencia/quiebra de clientes | Debida diligencia de riesgo financiero | ⚖️ Boletín Concursal (acceso manual) |
+    | Causas judiciales de clientes | Debida diligencia reforzada | ⚖️ Poder Judicial (acceso manual — CAPTCHA impide automatizar) |
+
+    #### Delitos base de la Ley N°20.393 relevantes para una corredora
+    Lavado de activos, cohecho/soborno (nacional y transnacional), financiamiento del
+    terrorismo, receptación, corrupción entre particulares, negociación incompatible,
+    administración desleal, apropiación indebida — el screening de listas + PEP + noticias
+    adversas + smurfing de este hub apunta principalmente a **prevenir y detectar señales**
+    de estos delitos en la relación con clientes, no a los delitos cometidos por la propia
+    organización (para eso se requiere un Modelo de Prevención de Delitos formal, con
+    Encargado de Prevención designado — fuera del alcance de este hub).
+
+    #### Lo que este hub NO reemplaza
+    - El **Modelo de Prevención de Delitos** exigido por la Ley N°20.393 (documento
+      formal, con Encargado de Prevención designado por el Directorio).
+    - La **presentación del Reporte de Operación Sospechosa (ROS)** a la UAF — las
+      alertas de este hub son insumo para que el Oficial de Cumplimiento decida si
+      corresponde, no un reporte automático.
+    - El **juicio profesional** del Oficial de Cumplimiento — todas las alertas
+      requieren revisión humana antes de cualquier decisión.
+    - Los requisitos **prudenciales** de la NCG N°571 (capital mínimo, activos
+      ponderados por riesgo, liquidez, gobierno corporativo) — son de naturaleza
+      financiera/contable, no de screening de datos.
+
+    *Este panel es una guía de referencia, no asesoría legal. Ante dudas sobre el
+    alcance exacto de una obligación, consulta a tu equipo legal o directamente la
+    normativa vigente en [cmfchile.cl](https://www.cmfchile.cl) y [uaf.cl](https://www.uaf.cl).*
     """)
+
+
 
 resumen = obtener_resumen()
 col1, col2, col3, col4, col5 = st.columns(5)
