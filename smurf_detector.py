@@ -2,16 +2,39 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 # ─── CONFIGURACIÓN SMURFING ───────────────────────────────
-UMBRAL_REPORTE = 10000      # Monto sobre el cual se debe reportar (USD/UF)
+# NOTA: el umbral legal real es USD 10.000 (Ley 19.913/20.818), no
+# CLP 10.000 — usa calcular_umbral_clp() para el valor correcto en
+# pesos con el dólar del día, en vez de este valor fijo desactualizado.
+UMBRAL_REPORTE = 10000       # ⚠️ ver nota arriba — mantenido solo como fallback
 VENTANA_DIAS = 7            # Días a analizar hacia atrás
 MIN_TRANSACCIONES = 3       # Mínimo de TX fraccionadas para alertar
 PORCENTAJE_UMBRAL = 0.85    # TX sospechosas si suman más del 85% del umbral
 
+
+def calcular_umbral_clp():
+    """
+    Calcula el umbral legal real (USD 10.000 → CLP) usando el dólar
+    del día vía mindicador.cl. Si falla, usa un valor de referencia
+    aproximado en vez del UMBRAL_REPORTE viejo (que estaba en CLP
+    10.000, ~640 veces menor al umbral legal real).
+    """
+    try:
+        from verificacion_rut import consultar_dolar_hoy
+        info = consultar_dolar_hoy()
+        if info:
+            return round(info["valor"] * 10000)
+    except Exception:
+        pass
+    return 9_500_000  # fallback de referencia
+
+
 # ─── DETECTOR PRINCIPAL ───────────────────────────────────
-def detectar_smurfing(df_transacciones):
+def detectar_smurfing(df_transacciones, umbral=None):
     """
     Detecta patrones de smurfing en un DataFrame de transacciones.
-    
+    umbral: si no se especifica, se calcula automáticamente en CLP
+    equivalente a USD 10.000 (umbral legal real).
+
     Columnas esperadas:
     - cliente_id
     - cliente_nombre
@@ -19,6 +42,9 @@ def detectar_smurfing(df_transacciones):
     - monto
     - tipo (deposito, transferencia, etc)
     """
+    if umbral is None:
+        umbral = calcular_umbral_clp()
+
     alertas = []
     fecha_limite = datetime.now() - timedelta(days=VENTANA_DIAS)
     
@@ -31,23 +57,23 @@ def detectar_smurfing(df_transacciones):
     # Agrupar por cliente
     for cliente_id, grupo in df_reciente.groupby("cliente_id"):
         # Filtrar TX bajo el umbral (las sospechosas de ser fraccionadas)
-        tx_bajo_umbral = grupo[grupo["monto"] < UMBRAL_REPORTE]
+        tx_bajo_umbral = grupo[grupo["monto"] < umbral]
         
         if len(tx_bajo_umbral) >= MIN_TRANSACCIONES:
             total = tx_bajo_umbral["monto"].sum()
             
             # Si la suma supera el porcentaje del umbral → smurf
-            if total >= UMBRAL_REPORTE * PORCENTAJE_UMBRAL:
+            if total >= umbral * PORCENTAJE_UMBRAL:
                 alertas.append({
                     "Fecha detección": datetime.now().strftime("%d/%m/%Y %H:%M"),
                     "ID Cliente": cliente_id,
                     "Nombre Cliente": grupo["cliente_nombre"].iloc[0],
                     "N° Transacciones": len(tx_bajo_umbral),
                     "Monto Total": f"${total:,.0f}",
-                    "Umbral reporte": f"${UMBRAL_REPORTE:,}",
+                    "Umbral reporte": f"${umbral:,}",
                     "Ventana días": VENTANA_DIAS,
                     "Tipo alerta": "SMURFING / FRACCIONAMIENTO",
-                    "Riesgo": "ALTO" if total > UMBRAL_REPORTE else "MEDIO"
+                    "Riesgo": "ALTO" if total > umbral else "MEDIO"
                 })
     
     return alertas
