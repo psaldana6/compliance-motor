@@ -79,7 +79,7 @@ def enviar_alerta_email(alertas, tipo="LISTA NEGRA"):
         msg.attach(adjunto)
 
     try:
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=20) as server:
             server.starttls()
             server.login(EMAIL_ORIGEN, APP_PASSWORD)
             server.sendmail(EMAIL_ORIGEN, EMAIL_DESTINO, msg.as_string())
