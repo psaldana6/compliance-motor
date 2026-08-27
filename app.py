@@ -55,6 +55,17 @@ with st.expander("ℹ️ Marco normativo cubierto — matriz completa (Ley 19.91
     organización (para eso se requiere un Modelo de Prevención de Delitos formal, con
     Encargado de Prevención designado — fuera del alcance de este hub).
 
+    #### Ley N°21.595 — Ley de Delitos Económicos
+    Modifica extensamente la Ley N°20.393 (nueva redacción de los arts. 1° a 13°) e
+    incorpora el **art. 11 bis** sobre supervisión de la persona jurídica (posibilidad
+    de un supervisor externo). Amplía el catálogo de delitos económicos y endurece
+    las sanciones. Relevante en especial para la fila de "entrega de información
+    falsa al regulador" — hoy también tipificada específicamente por la
+    **Ley N°21.770** (presentación de información falsa y certificación/informe
+    fraudulento ante la autoridad). *Recomendación: el equipo de Compliance debería
+    revisar si el Modelo de Prevención de Delitos y su matriz de riesgos ya
+    reflejan esta reclasificación.*
+
     #### Lo que este hub NO reemplaza
     - El **Modelo de Prevención de Delitos** exigido por la Ley N°20.393 (documento
       formal, con Encargado de Prevención designado por el Directorio).
