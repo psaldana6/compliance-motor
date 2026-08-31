@@ -19,6 +19,38 @@ import res_simplificado
 # ─── CONFIGURACIÓN ───────────────────────────────────────
 st.set_page_config(page_title="Motor Compliance", page_icon="🛡️", layout="wide")
 
+# ─── ESTILO GLOBAL — tipografía y tamaños consistentes con los ─
+# módulos HTML del hub (Aptos Display + escala de letra mayor).
+# Aptos no está en Google Fonts: si el equipo tiene Windows 11/Office
+# 365 recientes, ya la tiene instalada localmente y se usa tal cual;
+# si no, cae automáticamente a la fuente sans-serif por defecto del
+# navegador sin romper nada.
+st.markdown("""
+<style>
+    html, body, [class*="css"] {
+        font-family: 'Aptos Display', 'Aptos', -apple-system, sans-serif !important;
+    }
+    /* Texto general y widgets */
+    .stMarkdown, .stText, p, span, div, label {
+        font-size: 1.05rem !important;
+    }
+    /* Títulos */
+    h1 { font-size: 2.4rem !important; }
+    h2 { font-size: 1.9rem !important; }
+    h3 { font-size: 1.5rem !important; }
+    /* Métricas (st.metric) — número grande */
+    [data-testid="stMetricValue"] { font-size: 2rem !important; }
+    [data-testid="stMetricLabel"] { font-size: 1rem !important; }
+    /* Pestañas */
+    button[data-baseweb="tab"] p { font-size: 1.05rem !important; }
+    /* Botones */
+    .stButton button { font-size: 1.05rem !important; }
+    /* Menú lateral */
+    section[data-testid="stSidebar"] * { font-size: 1.05rem !important; }
+</style>
+""", unsafe_allow_html=True)
+
+
 UMBRAL_REPORTE = 10000
 VENTANA_DIAS = 7
 MIN_TRANSACCIONES = 3
