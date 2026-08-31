@@ -26,6 +26,31 @@ PORCENTAJE_UMBRAL = 0.85
 
 inicializar_db()
 
+# ─── MENÚ LATERAL — HUB DE MÓDULOS ────────────────────────
+# Cada entrada es un archivo HTML autocontenido (artifact) guardado en
+# modulos_html/. Se agregan nuevas entradas simplemente copiando el
+# archivo a esa carpeta y sumando una línea al diccionario MODULOS.
+import os as _os
+
+MODULOS_HTML = {
+    "Calibración de Alertas PLAFT": "calibracion_alertas_plaft.html",
+    "Motor de Sensibilidad PLAFT": "motor_sensibilidad_plaft310826.html",
+    "Dashboard PLAFT en Fabric": "acceso_bi_cumplimiento.html",
+}
+
+st.sidebar.title("🛡️ Hub Compliance")
+opciones_menu = ["🏠 Motor Principal"] + [f"📄 {nombre}" for nombre in MODULOS_HTML]
+seleccion = st.sidebar.radio("Módulos", opciones_menu, label_visibility="collapsed")
+
+if seleccion != "🏠 Motor Principal":
+    nombre_modulo = seleccion.replace("📄 ", "")
+    archivo_modulo = MODULOS_HTML[nombre_modulo]
+    ruta_modulo = _os.path.join(_os.path.dirname(__file__), "modulos_html", archivo_modulo)
+    with open(ruta_modulo, "r", encoding="utf-8") as f:
+        html_contenido = f.read()
+    st.components.v1.html(html_contenido, height=1200, scrolling=True)
+    st.stop()
+
 st.title("🛡️ Motor de Compliance - Monitoreo Integral")
 
 with st.expander("ℹ️ Marco normativo cubierto — matriz completa (Ley 19.913, Ley 20.393, Circular UAF, NCG 571)"):

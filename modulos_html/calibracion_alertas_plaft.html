@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calibración de Alertas PLAFT</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --paper:#ECEEE9;
+  --panel:#F5F6F2;
+  --ink:#1B2430;
+  --ink-soft:#586173;
+  --line:#CDD1C2;
+  --line-soft:#DEE1D5;
+  --burgundy:#7A2331;
+  --burgundy-deep:#571822;
+  --ok:#2F6F4E;
+  --warn:#A9791F;
+  --bad:#7A2331;
+  --serif:'Source Serif 4', Georgia, serif;
+  --sans:'IBM Plex Sans', -apple-system, sans-serif;
+  --mono:'IBM Plex Mono', 'SF Mono', monospace;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:1040px;margin:0 auto;padding:48px 28px 96px;}
+header.top{border-bottom:2px solid var(--ink);padding-bottom:22px;margin-bottom:36px;}
+header.top .kicker{font-size:13px;color:var(--burgundy);font-weight:600;letter-spacing:0.02em;margin-bottom:8px;}
+header.top h1{font-family:var(--serif);font-weight:600;font-size:32px;margin:0 0 10px;max-width:660px;line-height:1.15;}
+header.top p{margin:0;color:var(--ink-soft);font-size:15px;max-width:640px;}
+section{margin-bottom:40px;}
+h2.section-title{font-family:var(--serif);font-size:20px;font-weight:600;margin:0 0 4px;display:flex;align-items:baseline;gap:10px;}
+h2.section-title .num{font-family:var(--mono);font-size:13px;color:var(--burgundy);border:1px solid var(--burgundy);border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+.section-sub{color:var(--ink-soft);font-size:13.5px;margin:0 0 18px;max-width:660px;}
+.panel{background:var(--panel);border:1px solid var(--line);padding:22px 24px;}
+.param-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:16px 20px;}
+.param-field label{display:block;font-size:12.5px;color:var(--ink-soft);margin-bottom:5px;}
+.param-field input{width:100%;font-family:var(--mono);font-size:14px;padding:7px 9px;border:1px solid var(--line);background:#fff;color:var(--ink);}
+.param-field input:focus{outline:none;border-color:var(--burgundy);}
+details.panel-toggle summary{cursor:pointer;font-size:13.5px;color:var(--burgundy);margin-bottom:14px;font-weight:500;}
+details.panel-toggle summary::marker{color:var(--burgundy);}
+.dropzone{border:1.5px dashed var(--line);background:var(--panel);padding:36px 24px;text-align:center;cursor:pointer;transition:border-color .15s ease, background .15s ease;}
+.dropzone.drag{border-color:var(--burgundy);background:#F1E9EA;}
+.dropzone .dz-title{font-family:var(--serif);font-size:17px;margin-bottom:6px;}
+.dropzone .dz-sub{font-size:13px;color:var(--ink-soft);}
+.dropzone input[type=file]{display:none;}
+.file-info{margin-top:14px;font-size:13.5px;color:var(--ink-soft);display:none;align-items:center;gap:10px;}
+.file-info.show{display:flex;}
+.file-info .dot{width:7px;height:7px;background:var(--ok);border-radius:50%;flex-shrink:0;}
+.file-info strong{color:var(--ink);font-weight:600;}
+.sheet-row{margin-top:14px;display:none;align-items:center;gap:10px;font-size:13.5px;}
+.sheet-row.show{display:flex;}
+.sheet-row select{font-family:var(--sans);font-size:13.5px;padding:6px 8px;border:1px solid var(--line);background:#fff;}
+#mappingSection{display:none;}
+#mappingSection.show{display:block;}
+.map-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 20px;margin-bottom:20px;}
+@media(max-width:640px){.map-grid{grid-template-columns:1fr;}}
+.map-field label{display:block;font-size:13px;margin-bottom:5px;}
+.map-field label .req{color:var(--burgundy);}
+.map-field label .opt{color:var(--ink-soft);font-weight:400;font-size:12px;}
+.map-field select{width:100%;font-family:var(--sans);font-size:13.5px;padding:8px 9px;border:1px solid var(--line);background:#fff;color:var(--ink);}
+.map-field select:focus{outline:none;border-color:var(--burgundy);}
+.btn-primary{font-family:var(--sans);font-size:14.5px;font-weight:600;background:var(--burgundy);color:#fff;border:none;padding:12px 26px;cursor:pointer;}
+.btn-primary:hover{background:var(--burgundy-deep);}
+.btn-secondary{font-family:var(--sans);font-size:13px;font-weight:500;background:transparent;color:var(--ink);border:1px solid var(--ink);padding:9px 18px;cursor:pointer;}
+.btn-secondary:hover{background:var(--ink);color:var(--paper);}
+.map-error{color:var(--bad);font-size:13px;margin-top:4px;display:none;}
+.map-error.show{display:block;}
+#resultsSection{display:none;}
+#resultsSection.show{display:block;}
+.overview-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:34px;}
+.overview-row .kpi{background:#fff;padding:18px 18px 16px;}
+.kpi .kpi-val{font-family:var(--serif);font-size:30px;font-weight:600;line-height:1;margin-bottom:6px;}
+.kpi .kpi-val.ok{color:var(--ok);}
+.kpi .kpi-val.warn{color:var(--warn);}
+.kpi .kpi-val.bad{color:var(--bad);}
+.kpi .kpi-label{font-size:12px;color:var(--ink-soft);}
+.result-block{margin-bottom:44px;padding-top:6px;border-top:1px solid var(--line);}
+.result-block h3.block-title{font-family:var(--serif);font-size:22px;font-weight:600;margin:22px 0 4px;}
+.result-block .block-sub{font-size:13px;color:var(--ink-soft);margin:0 0 18px;}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:24px;}
+.kpi-row .kpi{background:#fff;padding:18px 18px 16px;}
+.diagnostic{border-left:3px solid var(--burgundy);background:var(--panel);padding:18px 22px;margin-bottom:24px;font-size:14.5px;}
+.diagnostic h4{font-family:var(--serif);font-size:16px;margin:0 0 10px;font-weight:600;}
+.diagnostic p{margin:0 0 10px;color:var(--ink);}
+.diagnostic p:last-child{margin-bottom:0;}
+.diagnostic .rule-block{font-family:var(--mono);font-size:12.5px;background:#fff;border:1px solid var(--line);padding:10px 12px;margin:10px 0;white-space:pre;overflow-x:auto;color:var(--ink);}
+.table-wrap{border:1px solid var(--line);overflow-x:auto;margin-bottom:16px;max-height:520px;overflow-y:auto;}
+table.results-table{border-collapse:collapse;width:100%;font-size:13px;}
+table.results-table thead th{text-align:left;font-weight:600;font-size:12px;color:var(--ink-soft);background:var(--panel);padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;position:sticky;top:0;}
+table.results-table tbody td{padding:9px 12px;border-bottom:1px solid var(--line-soft);font-family:var(--mono);white-space:nowrap;}
+table.results-table tbody td.txt{font-family:var(--sans);}
+table.results-table tbody tr:last-child td{border-bottom:none;}
+table.results-table tbody tr:hover{background:var(--panel);}
+.flag{display:inline-flex;align-items:center;gap:6px;font-family:var(--sans);font-size:12.5px;font-weight:500;}
+.flag .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.flag.ok .dot{background:var(--ok);} .flag.ok{color:var(--ok);}
+.flag.warn .dot{background:var(--warn);} .flag.warn{color:var(--warn);}
+.flag.bad .dot{background:var(--bad);} .flag.bad{color:var(--bad);}
+.results-actions{display:flex;gap:12px;margin-top:6px;}
+.table-toolbar{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:12.5px;}
+.table-toolbar label{color:var(--ink-soft);display:flex;align-items:center;gap:6px;}
+.table-toolbar select{font-family:var(--sans);font-size:13px;padding:5px 7px;border:1px solid var(--line);background:#fff;color:var(--ink);}
+.table-hint{color:var(--ink-soft);font-size:12px;}
+table.results-table thead th{cursor:pointer;}
+table.results-table thead th:hover{color:var(--ink);}
+@media print{
+  .no-print{display:none !important;}
+  body{background:#fff;}
+  .wrap{max-width:100%;padding:0 8px;}
+  .diagnostic, .kpi-row, .overview-row{break-inside:avoid;}
+  .result-block{break-inside:avoid-page;padding-top:16px;}
+  h2.section-title .num{border-color:#000;color:#000;}
+}
+.empty-note{font-size:13.5px;color:var(--ink-soft);padding:16px 0;}
+footer.note{margin-top:56px;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-soft);max-width:660px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="kicker">Corredora — Prevención LA/FT</div>
+    <h1>Calibración de Alertas PLAFT</h1>
+    <p>Carga el control de alertas del período (export de iManager). La herramienta lee el texto de cada alerta, clasifica el tipo (Materialidad / Aporte de Capital), recalcula piso y variación, y entrega el diagnóstico de falsos positivos en esta misma pantalla.</p>
+  </header>
+
+  <section class="no-print">
+    <h2 class="section-title"><span class="num">1</span>Parámetros del modelo</h2>
+    <p class="section-sub">Ya vienen cargados los parámetros vigentes (piso de materialidad, UF450, piso por perfil en Capital). No necesitas tocar nada para procesar el archivo — esta sección es solo para simular escenarios distintos.</p>
+    <details class="panel-toggle">
+      <summary>Ver / editar parámetros (opcional — solo para escenarios)</summary>
+      <div class="panel">
+        <div class="param-grid">
+          <div class="param-field"><label>Tipo de cambio USD/CLP</label><input type="number" id="p_tc" value="900" step="1"></div>
+          <div class="param-field"><label>Tipo de cambio EUR/CLP</label><input type="number" id="p_tcEur" value="1000" step="1"></div>
+          <div class="param-field"><label>Valor UF (CLP)</label><input type="number" id="p_uf" value="40874" step="1"></div>
+          <div class="param-field"><label>Piso materialidad PN (USD)</label><input type="number" id="p_pisoPN" value="10000" step="100"></div>
+          <div class="param-field"><label>Piso materialidad PJ (USD)</label><input type="number" id="p_pisoPJ" value="50000" step="100"></div>
+          <div class="param-field"><label>Umbral perfil Bajo, fallback (%)</label><input type="number" id="p_umbBajo" value="40" step="1"></div>
+          <div class="param-field"><label>Umbral perfil Medio, fallback (%)</label><input type="number" id="p_umbMedio" value="30" step="1"></div>
+          <div class="param-field"><label>Umbral perfil Alto, fallback (%)</label><input type="number" id="p_umbAlto" value="20" step="1"></div>
+          <div class="param-field"><label>Piso absoluto Capital (UF)</label><input type="number" id="p_umbUF" value="450" step="1"></div>
+          <div class="param-field"><label>Piso Capital perfil Bajo/Medio (USD)</label><input type="number" id="p_umbPerfilUSD" value="100000" step="1000"></div>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <section class="no-print">
+    <h2 class="section-title"><span class="num">2</span>Cargar archivo Excel</h2>
+    <p class="section-sub">Exporta el control de alertas del período desde iManager (.xlsx o .csv) y súbelo aquí. Se procesa localmente en tu navegador, no se envía a ningún servidor.</p>
+    <div class="dropzone" id="dropzone">
+      <div class="dz-title">Arrastra el archivo aquí, o haz clic para seleccionarlo</div>
+      <div class="dz-sub">.xlsx, .xls o .csv</div>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+    </div>
+    <div class="file-info" id="fileInfo"><span class="dot"></span><span id="fileInfoText"></span></div>
+    <div class="sheet-row" id="sheetRow">
+      <label for="sheetSelect">Hoja:</label>
+      <select id="sheetSelect"></select>
+    </div>
+  </section>
+
+  <section id="mappingSection" class="no-print">
+    <h2 class="section-title"><span class="num">3</span>Mapear columnas</h2>
+    <p class="section-sub">Solo necesitas indicar dónde está el texto de la alerta. El tipo (Materialidad / Capital), perfil, montos y condiciones se extraen automáticamente desde ese texto.</p>
+    <div class="map-grid" id="mapGrid"></div>
+    <div class="map-error" id="mapError"></div>
+    <button class="btn-primary" id="btnProcess">Procesar alertas</button>
+  </section>
+
+  <section id="resultsSection">
+    <div class="no-print" style="display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;">
+      <h2 class="section-title"><span class="num">4</span>Resultado y diagnóstico</h2>
+      <button class="btn-secondary" id="btnPrint">Descargar informe (PDF)</button>
+    </div>
+    <div id="execSummary"></div>
+    <div class="overview-row" id="overviewRow"></div>
+    <div id="overviewBars" style="margin-bottom:8px;"></div>
+    <p class="section-sub no-print" id="overviewNote" style="display:none;margin-top:-8px;margin-bottom:20px;"></p>
+
+    <div class="result-block" id="blockMaterialidad">
+      <h3 class="block-title">Alertas de Materialidad</h3>
+      <div class="kpi-row" id="kpiRowM"></div>
+      <div id="reportM"></div>
+      <div id="emptyM" class="empty-note" style="display:none;">No se detectaron alertas de Materialidad en el archivo.</div>
+      <details class="panel-toggle no-print" style="margin-top:8px;">
+        <summary>Ver detalle de todas las alertas (ordenable y filtrable)</summary>
+        <div id="tableBarM"></div>
+        <div class="table-wrap" id="tableWrapM"><table class="results-table" id="tableM"></table></div>
+      </details>
+    </div>
+
+    <div class="result-block" id="blockCapital">
+      <h3 class="block-title">Alertas de Aporte de Capital</h3>
+      <div class="kpi-row" id="kpiRowC"></div>
+      <div id="reportC"></div>
+      <div id="emptyC" class="empty-note" style="display:none;">No se detectaron alertas de Aporte de Capital en el archivo.</div>
+      <details class="panel-toggle no-print" style="margin-top:8px;">
+        <summary>Ver detalle de todas las alertas (ordenable y filtrable)</summary>
+        <div id="tableBarC"></div>
+        <div class="table-wrap" id="tableWrapC"><table class="results-table" id="tableC"></table></div>
+      </details>
+    </div>
+
+    <div class="result-block" id="blockExtra">
+      <h3 class="block-title">Antigüedad, tendencia y sensibilidad</h3>
+      <div id="backlogSection"></div>
+      <div id="trendSection"></div>
+      <div id="sensibilidadSection"></div>
+    </div>
+  </section>
+
+  <footer class="note">
+    Herramienta de apoyo al análisis interno. Extrae los datos por reconocimiento de texto sobre la columna de descripción; si el formato de la frase cambia respecto al ejemplo usado para calibrar la herramienta, algunas filas pueden quedar marcadas como "no interpretadas" y conviene revisarlas manualmente. No reemplaza el criterio del analista ni constituye por sí sola una recalibración formal del modelo.
+  </footer>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+(function(){
+
+  let workbook = null;
+  let headers = [];
+  let dataRows = [];
+
+  const MAP_FIELDS = [
+    {key:'titulo',      label:'Columna de título (ayuda a clasificar el tipo)', required:false, guess:/titulo|t[ií]tulo/i},
+    {key:'descripcion', label:'Columna de descripción de la alerta', required:true, guess:/descripcion|descripci[oó]n|detalle/i},
+    {key:'fecha',       label:'Columna de fecha (referencia)', required:false, guess:/^fecha$/i},
+    {key:'estado',      label:'Columna de estado (abierta/cerrada)', required:false, guess:/^estado$/i},
+    {key:'fechaCierre', label:'Columna de fecha de cierre (respaldo para determinar abierta/cerrada)', required:false, guess:/fechacierre|fecha_cierre/i},
+  ];
+
+  // ---------- helpers ----------
+  function parseNumberFlexible(v){
+    if(v===null || v===undefined || v==='') return NaN;
+    if(typeof v === 'number') return v;
+    let s = String(v).trim();
+    s = s.replace(/[^0-9.,\-]/g,'');
+    if(s==='') return NaN;
+    if(s.includes(',') && s.includes('.')){ s = s.replace(/\./g,'').replace(',', '.'); }
+    else if(s.includes(',') && !s.includes('.')){ s = s.replace(',', '.'); }
+    else if(s.includes('.')){
+      const parts = s.split('.');
+      if(parts.length > 2 || (parts.length===2 && parts[1].length===3)) s = s.replace(/\./g,'');
+    }
+    return parseFloat(s);
+  }
+  function normalizePerfil(v){
+    const s = String(v||'').trim().toLowerCase();
+    if(s.startsWith('baj')) return 'bajo';
+    if(s.startsWith('med')) return 'medio';
+    if(s.startsWith('alt')) return 'alto';
+    return null;
+  }
+  function normalizeMoneda(v){
+    const s = String(v||'CLP').trim().toUpperCase();
+    if(s.includes('USD') || s==='US$' || s==='U$S') return 'USD';
+    if(s.includes('EUR')) return 'EUR';
+    if(s.includes('UF')) return 'UF';
+    return 'CLP';
+  }
+  function fmtUSD(n){ if(!isFinite(n)) return '—'; return '$' + new Intl.NumberFormat('en-US',{maximumFractionDigits:0}).format(Math.round(n)); }
+  function fmtPct(n){ if(!isFinite(n)) return '∞'; return new Intl.NumberFormat('es-CL',{maximumFractionDigits:1}).format(n) + '%'; }
+  function fmtUF(n){ if(!isFinite(n)) return '—'; return new Intl.NumberFormat('es-CL',{maximumFractionDigits:1}).format(n); }
+
+  function perfilBreakdownHTML(results){
+    const perfiles = ['bajo','medio','alto'];
+    const flags = {};
+    results.forEach(r=>{ if(!r.perfil) return; flags[r.flagLabel] = flags[r.flagLabel]||{}; });
+    const flagLabels = [...new Set(results.map(r=>r.flagLabel))];
+    let rows = perfiles.map(p=>{
+      const sub = results.filter(r=>r.perfil===p);
+      if(!sub.length) return null;
+      const counts = flagLabels.map(fl=>sub.filter(r=>r.flagLabel===fl).length);
+      return {p, total:sub.length, counts};
+    }).filter(Boolean);
+    if(!rows.length) return '';
+    let html = '<table class="results-table" style="margin-top:4px;"><thead><tr><th>Perfil</th><th>Total</th>' + flagLabels.map(fl=>`<th>${fl}</th>`).join('') + '</tr></thead><tbody>';
+    rows.forEach(r=>{
+      html += `<tr><td class="txt">${r.p[0].toUpperCase()+r.p.slice(1)}</td><td>${r.total}</td>` + r.counts.map(c=>`<td>${c}</td>`).join('') + '</tr>';
+    });
+    html += '</tbody></table>';
+    return html;
+  }
+
+  // ---------- text extraction ----------
+  function parseFecha(v){
+    if(v===null||v===undefined||v==='') return null;
+    if(v instanceof Date) return isNaN(v.getTime())?null:v;
+    if(typeof v==='number'){
+      const d = new Date(Math.round((v-25569)*86400*1000));
+      return isNaN(d.getTime())?null:d;
+    }
+    const s = String(v).trim();
+    if(!s) return null;
+    let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if(m) return new Date(+m[1], +m[2]-1, +m[3]);
+    m = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+    if(m) return new Date(+m[3], +m[2]-1, +m[1]);
+    const d = new Date(s);
+    return isNaN(d.getTime())?null:d;
+  }
+  function daysBetween(a,b){ return Math.floor((b-a)/86400000); }
+  function weekStartOf(d){
+    const dt = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const day = dt.getDay();
+    const diff = (day===0?-6:1-day);
+    dt.setDate(dt.getDate()+diff);
+    return dt;
+  }
+  function fmtDateShort(d){
+    return String(d.getDate()).padStart(2,'0')+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+d.getFullYear();
+  }
+
+  function determinarEstado(row, mapping, val){
+    if(mapping.estado!=='__none__'){
+      const v = String(val(row,mapping,'estado')||'').trim().toLowerCase();
+      if(v){
+        if(/cerr|resuelt|finaliz|closed|complet|descart/.test(v)) return 'cerrada';
+        if(/abiert|pendient|open|en\s*proceso|activ|revision|revisión/.test(v)) return 'abierta';
+      }
+    }
+    if(mapping.fechaCierre!=='__none__'){
+      const fc = String(val(row,mapping,'fechaCierre')||'').trim();
+      if(fc && fc!=='0000-00-00' && fc!=='0') return 'cerrada';
+      return 'abierta';
+    }
+    return 'desconocido';
+  }
+
+  function detectType(text){
+    if(/materialidad/i.test(text)) return 'materialidad';
+    if(/aporte\s+de\s+capital|aporte\s+capital/i.test(text)) return 'capital';
+    return null;
+  }
+  function extractPerfil(text){
+    const m = text.match(/Perfil\s*riesgo:?\s*([A-Za-zÁ-Úá-ú]+)/i);
+    return m ? normalizePerfil(m[1]) : null;
+  }
+  function extractTipoPersona(text){
+    return /persona\s*jur[ií]dica|\bPJ\b/i.test(text) ? 'PJ' : 'PN';
+  }
+  function extractMaterialidad(text){
+    const perfil = extractPerfil(text);
+    const m = text.match(/de\s*([\d.,]+)\s*([A-Za-z$]{2,5})\s*el\s*d[ií]a\s*([\d-]+)\s*a\s*([\d.,]+)\s*([A-Za-z$]{2,5})\s*el\s*d[ií]a\s*([\d-]+)/i);
+    if(!m) return {perfil, ok:false};
+    const pctM = text.match(/(?:m[aá]s|menos)\s+de\s+([\d.,]+)\s*%/i);
+    const diasM = text.match(/respecto a\s*(\d+)\s*d[ií]as/i);
+    return {
+      perfil, ok:true, tipoPersona: extractTipoPersona(text),
+      baseRaw: parseNumberFlexible(m[1]), monedaBase: normalizeMoneda(m[2]), fechaBase: m[3],
+      finalRaw: parseNumberFlexible(m[4]), monedaFinal: normalizeMoneda(m[5]), fechaFinal: m[6],
+      pctDeclarado: pctM ? parseNumberFlexible(pctM[1]) : null,
+      diasDeclarado: diasM ? diasM[1] : null,
+    };
+  }
+  function extractCapital(text){
+    const perfil = extractPerfil(text);
+    const mm = text.match(/Monto:\s*([\d.,]+)\s*([A-Za-z]{2,5})/i);
+    if(!mm) return {perfil, ok:false};
+    const cond1Declared = /doble del promedio/i.test(text);
+    const ufM = text.match(/mayor que\s*UF\s*([\d.,]+)/i);
+    const usdM = text.match(/mayor que\s*USD\s*([\d.,]+)/i);
+    return {
+      perfil, ok:true,
+      montoRaw: parseNumberFlexible(mm[1]), moneda: normalizeMoneda(mm[2]),
+      cond1Declared, cond2Declared: !!ufM, cond3Declared: !!usdM,
+      ufDeclarado: ufM ? parseNumberFlexible(ufM[1]) : null,
+    };
+  }
+
+  // ---------- upload ----------
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  const fileInfo = document.getElementById('fileInfo');
+  const fileInfoText = document.getElementById('fileInfoText');
+  const sheetRow = document.getElementById('sheetRow');
+  const sheetSelect = document.getElementById('sheetSelect');
+
+  dropzone.addEventListener('click', ()=>fileInput.click());
+  dropzone.addEventListener('dragover', e=>{e.preventDefault(); dropzone.classList.add('drag');});
+  dropzone.addEventListener('dragleave', ()=>dropzone.classList.remove('drag'));
+  dropzone.addEventListener('drop', e=>{
+    e.preventDefault(); dropzone.classList.remove('drag');
+    if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', e=>{ if(e.target.files.length) handleFile(e.target.files[0]); });
+
+  function handleFile(file){
+    const reader = new FileReader();
+    reader.onload = function(e){
+      try{
+        const data = new Uint8Array(e.target.result);
+        workbook = XLSX.read(data, {type:'array'});
+        fileInfo.classList.add('show');
+        fileInfoText.innerHTML = '<strong>'+file.name+'</strong> cargado — ' + workbook.SheetNames.length + ' hoja(s) detectada(s)';
+        sheetSelect.innerHTML = '';
+        workbook.SheetNames.forEach(name=>{
+          const opt = document.createElement('option'); opt.value = name; opt.textContent = name;
+          sheetSelect.appendChild(opt);
+        });
+        sheetRow.classList.add('show');
+        sheetSelect.value = workbook.SheetNames[0];
+        loadSheet(workbook.SheetNames[0]);
+      }catch(err){
+        fileInfo.classList.add('show');
+        fileInfoText.textContent = 'No se pudo leer el archivo: ' + err.message;
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+  sheetSelect.addEventListener('change', ()=>loadSheet(sheetSelect.value));
+
+  function loadSheet(name){
+    const sheet = workbook.Sheets[name];
+    dataRows = XLSX.utils.sheet_to_json(sheet, {defval:'', cellDates:true});
+    headers = dataRows.length ? Object.keys(dataRows[0]) : [];
+    renderMapping();
+  }
+
+  // ---------- mapping ----------
+  const mappingSection = document.getElementById('mappingSection');
+  const mapGrid = document.getElementById('mapGrid');
+  const mapError = document.getElementById('mapError');
+
+  function renderMapping(){
+    mappingSection.classList.add('show');
+    mapGrid.innerHTML = '';
+    MAP_FIELDS.forEach(f=>{
+      const wrap = document.createElement('div'); wrap.className = 'map-field';
+      const label = document.createElement('label');
+      label.innerHTML = f.label + ' ' + (f.required ? '<span class="req">*</span>' : '<span class="opt">(opcional)</span>');
+      label.setAttribute('for','map_'+f.key);
+      const select = document.createElement('select'); select.id = 'map_'+f.key;
+      const noneOpt = document.createElement('option'); noneOpt.value='__none__'; noneOpt.textContent='-- no aplica --';
+      select.appendChild(noneOpt);
+      headers.forEach(h=>{ const opt=document.createElement('option'); opt.value=h; opt.textContent=h; select.appendChild(opt); });
+      const guess = headers.find(h=>f.guess.test(h));
+      if(guess) select.value = guess;
+      wrap.appendChild(label); wrap.appendChild(select);
+      mapGrid.appendChild(wrap);
+    });
+    document.getElementById('resultsSection').classList.remove('show');
+  }
+
+  function val(row, mapping, key){
+    const col = mapping[key];
+    if(!col || col==='__none__') return '';
+    return row[col];
+  }
+
+  // ---------- processing ----------
+  document.getElementById('btnProcess').addEventListener('click', ()=>{
+    mapError.classList.remove('show');
+    const mapping = {};
+    MAP_FIELDS.forEach(f=>{ mapping[f.key] = document.getElementById('map_'+f.key).value; });
+    if(mapping.descripcion==='__none__'){
+      mapError.textContent = 'Falta mapear: Columna de descripción de la alerta';
+      mapError.classList.add('show');
+      return;
+    }
+    if(!dataRows.length){
+      mapError.textContent = 'El archivo no tiene filas de datos.';
+      mapError.classList.add('show');
+      return;
+    }
+    processAll(mapping);
+  });
+
+  function readParams(){
+    return {
+      tc: parseFloat(document.getElementById('p_tc').value)||900,
+      tcEur: parseFloat(document.getElementById('p_tcEur').value)||1000,
+      uf: parseFloat(document.getElementById('p_uf').value)||40874,
+      pisoPN: parseFloat(document.getElementById('p_pisoPN').value)||10000,
+      pisoPJ: parseFloat(document.getElementById('p_pisoPJ').value)||50000,
+      umbBajo: parseFloat(document.getElementById('p_umbBajo').value)||40,
+      umbMedio: parseFloat(document.getElementById('p_umbMedio').value)||30,
+      umbAlto: parseFloat(document.getElementById('p_umbAlto').value)||20,
+      umbUF: parseFloat(document.getElementById('p_umbUF').value)||450,
+      umbPerfilUSD: parseFloat(document.getElementById('p_umbPerfilUSD').value)||100000,
+    };
+  }
+
+  function processAll(mapping){
+    const params = readParams();
+    const materialidadRows = [];
+    const capitalRows = [];
+    let noClasificadas = 0;
+    const estadoCounts = {abierta:0, cerrada:0, desconocido:0};
+    const estadoRows = [];
+
+    dataRows.forEach((row, idx)=>{
+      const tituloVal = mapping.titulo!=='__none__' ? String(val(row,mapping,'titulo')) : '';
+      const descVal = mapping.descripcion!=='__none__' ? String(val(row,mapping,'descripcion')) : '';
+      const fullText = tituloVal + '\n' + descVal;
+      const n = idx + 1;
+      const fecha = mapping.fecha!=='__none__' ? val(row,mapping,'fecha') : '';
+      const fechaObj = parseFecha(fecha);
+      const estado = determinarEstado(row, mapping, val);
+      estadoCounts[estado] = (estadoCounts[estado]||0) + 1;
+      estadoRows.push({fecha: fechaObj, estado});
+      const type = detectType(fullText);
+
+      if(type==='materialidad'){
+        const ext = extractMaterialidad(fullText);
+        if(!ext.ok || ext.perfil===null || isNaN(ext.baseRaw) || isNaN(ext.finalRaw)){
+          materialidadRows.push({n, fecha, estado, flag:'warn', flagLabel:'No interpretado', perfil:ext.perfil});
+          return;
+        }
+        const baseCLP = ext.monedaBase==='USD' ? ext.baseRaw*params.tc : ext.baseRaw;
+        const finalCLP = ext.monedaFinal==='USD' ? ext.finalRaw*params.tc : ext.finalRaw;
+        const baseUSD = baseCLP/params.tc, finalUSD = finalCLP/params.tc;
+        const variacionPct = (baseCLP>0) ? ((finalCLP-baseCLP)/baseCLP)*100 : Infinity;
+        const umbralPerfil = ext.perfil==='bajo'?params.umbBajo:ext.perfil==='medio'?params.umbMedio:params.umbAlto;
+        const umbral = (ext.pctDeclarado!==null && !isNaN(ext.pctDeclarado)) ? ext.pctDeclarado : umbralPerfil;
+        const piso = ext.tipoPersona==='PJ' ? params.pisoPJ : params.pisoPN;
+        const baseSobrePiso = baseUSD >= piso;
+        const finalSobrePiso = finalUSD >= piso;
+        const cumpleUmbral = variacionPct >= umbral;
+
+        let flag, flagLabel;
+        if(!cumpleUmbral){ flag='warn'; flagLabel='No supera el % declarado'; }
+        else if(baseSobrePiso){ flag='ok'; flagLabel='Consistente'; }
+        else if(finalSobrePiso){ flag='bad'; flagLabel='Falso positivo estructural (final cruza el piso)'; }
+        else { flag='bad'; flagLabel='Falso positivo estructural (sin materialidad real)'; }
+
+        materialidadRows.push({n, fecha, estado, perfil:ext.perfil, tipoPersona:ext.tipoPersona, baseUSD, finalUSD, variacionPct, umbral, piso, baseSobrePiso, finalSobrePiso, flag, flagLabel});
+      } else if(type==='capital'){
+        const ext = extractCapital(fullText);
+        if(!ext.ok || ext.perfil===null || isNaN(ext.montoRaw)){
+          capitalRows.push({n, fecha, estado, flag:'warn', flagLabel:'No interpretado', perfil:ext.perfil});
+          return;
+        }
+        let montoCLP;
+        if(ext.moneda==='USD') montoCLP = ext.montoRaw*params.tc;
+        else if(ext.moneda==='EUR') montoCLP = ext.montoRaw*params.tcEur;
+        else if(ext.moneda==='UF') montoCLP = ext.montoRaw*params.uf;
+        else montoCLP = ext.montoRaw;
+        const montoUSD = montoCLP/params.tc;
+        const montoUF = montoCLP/params.uf;
+        const cond2Recalc = montoUF > params.umbUF;
+        const cond3Recalc = (ext.perfil==='bajo'||ext.perfil==='medio') && montoUSD > params.umbPerfilUSD;
+        const driftUF = ext.cond2Declared !== cond2Recalc;
+        const driftUSD = ext.cond3Declared !== cond3Recalc;
+        const condCount = [ext.cond1Declared, cond2Recalc, cond3Recalc].filter(Boolean).length;
+        // OR mal ejecutado: el motor declaró la alerta gatillada solo por el multiplicador
+        // (2x promedio) sin que el piso absoluto UF haya sido parte de las condiciones declaradas.
+        const sinRespaldoPiso = ext.cond1Declared && !ext.cond2Declared && !ext.cond3Declared;
+
+        let flag, flagLabel;
+        if(sinRespaldoPiso){ flag='bad'; flagLabel='Gatillada sin respaldo de piso UF (OR mal ejecutado)'; }
+        else if(driftUF || driftUSD){ flag='bad'; flagLabel='Posible drift de parámetro'; }
+        else if(!cond2Recalc){ flag='bad'; flagLabel='No cumple piso UF'+params.umbUF; }
+        else if(montoUF < params.umbUF*1.1){ flag='warn'; flagLabel='Borde (cerca del piso UF)'; }
+        else if(condCount>=2){ flag='ok'; flagLabel='Alta materialidad'; }
+        else { flag='ok'; flagLabel='Consistente'; }
+
+        capitalRows.push({n, fecha, estado, perfil:ext.perfil, montoUSD, montoUF,
+          cond1Declared:ext.cond1Declared, cond2Declared:ext.cond2Declared, cond3Declared:ext.cond3Declared,
+          cond2Recalc, cond3Recalc, driftUF, driftUSD, sinRespaldoPiso, condCount, flag, flagLabel});
+      } else {
+        noClasificadas++;
+      }
+    });
+
+    renderOverview(materialidadRows, capitalRows, noClasificadas, estadoCounts);
+
+    const mInterp = materialidadRows.filter(r=>r.flagLabel!=='No interpretado');
+    const mFP = mInterp.filter(r=>r.flag==='bad');
+    const mPctFP = mInterp.length ? (mFP.length/mInterp.length*100) : 0;
+
+    const cInterp = capitalRows.filter(r=>r.flagLabel!=='No interpretado');
+    const cSinRespaldo = cInterp.filter(r=>r.sinRespaldoPiso);
+    const cDrift = cInterp.filter(r=>r.flagLabel==='Posible drift de parámetro');
+    const cNoPiso = cInterp.filter(r=>r.flagLabel && r.flagLabel.startsWith('No cumple'));
+    const cProblemaCount = cSinRespaldo.length + cDrift.length + cNoPiso.length;
+    const cPctProblema = cInterp.length ? (cProblemaCount/cInterp.length*100) : 0;
+
+    const backlog = computeBacklog(estadoRows);
+    const trend = computeTrend(materialidadRows.concat(capitalRows));
+    const sensibilidad = computeSensibilidad(materialidadRows, params);
+
+    renderExecutiveSummary({
+      total: materialidadRows.length+capitalRows.length+noClasificadas,
+      mInterp: mInterp.length, mFP: mFP.length, mPctFP,
+      cInterp: cInterp.length, cProblemaCount, cPctProblema,
+      backlog, trend
+    });
+
+    renderMaterialidad(materialidadRows, params);
+    renderCapital(capitalRows, params);
+    renderBacklog(backlog);
+    renderTrend(trend);
+    renderSensibilidad(sensibilidad, params);
+
+    document.getElementById('resultsSection').classList.add('show');
+  }
+
+  // ---- Backlog (antigüedad de alertas abiertas) ----
+  function computeBacklog(estadoRows){
+    const abiertas = estadoRows.filter(r=>r.estado==='abierta' && r.fecha);
+    if(!abiertas.length) return null;
+    const hoy = new Date();
+    const dias = abiertas.map(r=>Math.max(0, daysBetween(r.fecha, hoy)));
+    const buckets = [
+      {label:'0–5 días', min:0, max:5, count:0},
+      {label:'6–15 días', min:6, max:15, count:0},
+      {label:'16–30 días', min:16, max:30, count:0},
+      {label:'Más de 30 días', min:31, max:Infinity, count:0},
+    ];
+    dias.forEach(d=>{ const b=buckets.find(b=>d>=b.min && d<=b.max); if(b) b.count++; });
+    return {
+      count: abiertas.length,
+      avg: dias.reduce((s,x)=>s+x,0)/dias.length,
+      max: Math.max(...dias),
+      buckets,
+      sinFecha: estadoRows.filter(r=>r.estado==='abierta' && !r.fecha).length,
+    };
+  }
+
+  // ---- Tendencia temporal (por semana) ----
+  function computeTrend(rows){
+    const withDate = rows
+      .filter(r=>r.flagLabel && r.flagLabel!=='No interpretado' && r.fecha)
+      .map(r=>({...r, fechaObj:parseFecha(r.fecha)}))
+      .filter(r=>r.fechaObj);
+    if(withDate.length < 4) return null;
+    const groups = {};
+    withDate.forEach(r=>{
+      const wk = weekStartOf(r.fechaObj);
+      const key = wk.toISOString().slice(0,10);
+      if(!groups[key]) groups[key] = {date:wk, total:0, fp:0};
+      groups[key].total++;
+      if(r.flag==='bad') groups[key].fp++;
+    });
+    const periods = Object.values(groups).sort((a,b)=>a.date-b.date);
+    if(periods.length < 2) return null;
+    return periods;
+  }
+
+  // ---- Sensibilidad del piso de Materialidad ----
+  function computeSensibilidad(materialidadRows, params){
+    const candidatos = materialidadRows.filter(r=>
+      r.flagLabel && r.flagLabel!=='No interpretado' && r.flagLabel!=='No supera el % declarado');
+    if(!candidatos.length) return null;
+    const testValoresPN = [5000, 10000, 15000, 20000, 30000];
+    const ratio = params.pisoPJ / params.pisoPN;
+    return testValoresPN.map(pisoPN=>{
+      const pisoPJ = Math.round(pisoPN*ratio);
+      let fp = 0;
+      candidatos.forEach(r=>{
+        const piso = r.tipoPersona==='PJ' ? pisoPJ : pisoPN;
+        if(r.baseUSD < piso) fp++;
+      });
+      return {pisoPN, pisoPJ, fp, total:candidatos.length, pct: fp/candidatos.length*100, esActual: pisoPN===params.pisoPN};
+    });
+  }
+
+  function renderOverview(mRows, cRows, noClasificadas, estadoCounts){
+    const total = mRows.length + cRows.length + noClasificadas;
+    const ab = estadoCounts.abierta||0, ce = estadoCounts.cerrada||0, desc = estadoCounts.desconocido||0;
+    document.getElementById('overviewRow').innerHTML = `
+      <div class="kpi"><div class="kpi-val">${total}</div><div class="kpi-label">Total de alertas</div></div>
+      <div class="kpi"><div class="kpi-val warn">${ab}</div><div class="kpi-label">Abiertas</div></div>
+      <div class="kpi"><div class="kpi-val ok">${ce}</div><div class="kpi-label">Cerradas</div></div>
+      <div class="kpi"><div class="kpi-val">${mRows.length}</div><div class="kpi-label">Alertas de Materialidad</div></div>
+      <div class="kpi"><div class="kpi-val">${cRows.length}</div><div class="kpi-label">Alertas de Aporte de Capital</div></div>
+      <div class="kpi"><div class="kpi-val ${noClasificadas>0?'warn':'ok'}">${noClasificadas}</div><div class="kpi-label">No clasificadas</div></div>
+    `;
+
+    document.getElementById('overviewBars').innerHTML =
+      distribBarHTML([
+        {label:'Materialidad', count:mRows.length, color:'var(--burgundy)'},
+        {label:'Aporte de Capital', count:cRows.length, color:'#C77A54'},
+        {label:'No clasificadas', count:noClasificadas, color:'#B9B5A6'},
+      ], 'Distribución por tipo de alerta') +
+      distribBarHTML([
+        {label:'Abiertas', count:ab, color:'var(--warn)'},
+        {label:'Cerradas', count:ce, color:'var(--ok)'},
+        {label:'Sin estado', count:desc, color:'#B9B5A6'},
+      ], 'Distribución por estado');
+
+    if(desc>0){
+      const note = document.getElementById('overviewNote');
+      note.textContent = `${desc} alerta(s) sin estado determinable — mapea la columna "estado" o "fecha de cierre" para completar esta métrica.`;
+      note.style.display = 'block';
+    } else {
+      document.getElementById('overviewNote').style.display = 'none';
+    }
+  }
+
+  // ---- Materialidad render ----
+  function cap1(s){ return s ? s[0].toUpperCase()+s.slice(1) : s; }
+
+  function renderSortableTable(opts){
+    const {tableEl, barEl, rows, columns, storageKey} = opts;
+    const state = {sortIdx:null, sortDir:1, fPerfil:'all', fFlag:'all'};
+    const flagSet = [...new Set(rows.map(r=>r.flagLabel).filter(Boolean))];
+
+    barEl.innerHTML = `<div class="table-toolbar">
+      <label>Perfil <select id="${storageKey}_perfil"><option value="all">Todos</option><option value="bajo">Bajo</option><option value="medio">Medio</option><option value="alto">Alto</option></select></label>
+      <label>Diagnóstico <select id="${storageKey}_flag"><option value="all">Todos</option>${flagSet.map(f=>`<option value="${f}">${f}</option>`).join('')}</select></label>
+      <span class="table-hint">Clic en un encabezado de columna para ordenar</span>
+    </div>`;
+
+    function apply(){
+      let data = rows.slice();
+      if(state.fPerfil!=='all') data = data.filter(r=>r.perfil===state.fPerfil);
+      if(state.fFlag!=='all') data = data.filter(r=>r.flagLabel===state.fFlag);
+      if(state.sortIdx!==null){
+        const col = columns[state.sortIdx];
+        data.sort((a,b)=>{
+          let va = col.sortGet(a), vb = col.sortGet(b);
+          if(typeof va==='string') va = va.toLowerCase();
+          if(typeof vb==='string') vb = vb.toLowerCase();
+          if(va<vb) return -1*state.sortDir;
+          if(va>vb) return 1*state.sortDir;
+          return 0;
+        });
+      }
+      renderBody(data);
+    }
+
+    function renderHead(){
+      tableEl.innerHTML = `<thead><tr>${columns.map((c,i)=>`<th data-idx="${i}">${c.label}${state.sortIdx===i?(state.sortDir===1?' ▲':' ▼'):''}</th>`).join('')}</tr></thead><tbody></tbody>`;
+      tableEl.querySelectorAll('thead th').forEach(th=>{
+        th.addEventListener('click', ()=>{
+          const idx = parseInt(th.dataset.idx, 10);
+          if(state.sortIdx===idx) state.sortDir *= -1; else { state.sortIdx = idx; state.sortDir = 1; }
+          renderHead(); apply();
+        });
+      });
+    }
+
+    function renderBody(data){
+      const tbody = tableEl.querySelector('tbody');
+      tbody.innerHTML = data.map(r=>`<tr>${columns.map(c=>`<td class="${c.cls||''}">${c.get(r)}</td>`).join('')}</tr>`).join('')
+        || `<tr><td colspan="${columns.length}" class="txt" style="color:var(--ink-soft);">Sin filas para este filtro.</td></tr>`;
+    }
+
+    renderHead();
+    apply();
+    document.getElementById(storageKey+'_perfil').addEventListener('change', e=>{ state.fPerfil = e.target.value; apply(); });
+    document.getElementById(storageKey+'_flag').addEventListener('change', e=>{ state.fFlag = e.target.value; apply(); });
+  }
+
+  function distribBarHTML(segments, title){
+    // segments: [{label, count, color}]
+    const total = segments.reduce((s,x)=>s+x.count,0);
+    if(!total) return '';
+    const bars = segments.filter(s=>s.count>0).map(s=>{
+      const pct = (s.count/total*100).toFixed(1);
+      return `<div style="flex:${s.count};background:${s.color};min-width:2px;" title="${s.label}: ${s.count} (${pct}%)"></div>`;
+    }).join('');
+    const legend = segments.filter(s=>s.count>0).map(s=>{
+      const pct = (s.count/total*100).toFixed(1);
+      return `<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-soft);margin-right:16px;">
+        <span style="width:9px;height:9px;background:${s.color};display:inline-block;flex-shrink:0;"></span>${s.label}: <strong style="color:var(--ink);">${s.count}</strong> (${fmtPct(parseFloat(pct))})
+      </span>`;
+    }).join('');
+    return `<div style="margin:14px 0 6px;">
+      ${title ? `<div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:6px;">${title}</div>` : ''}
+      <div style="display:flex;height:14px;width:100%;overflow:hidden;border:1px solid var(--line);">${bars}</div>
+      <div style="margin-top:8px;">${legend}</div>
+    </div>`;
+  }
+
+  function renderMaterialidad(results, params){
+    const empty = document.getElementById('emptyM');
+    const wrap = document.getElementById('tableWrapM');
+    if(!results.length){ empty.style.display='block'; wrap.style.display='none'; document.getElementById('kpiRowM').innerHTML=''; document.getElementById('reportM').innerHTML=''; return; }
+    empty.style.display='none'; wrap.style.display='block';
+
+    const interpretables = results.filter(r=>r.flagLabel!=='No interpretado');
+    const total = results.length;
+    const noInterp = total - interpretables.length;
+    const catFP = interpretables.filter(r=>r.flag==='bad');
+    const catFPsinMat = catFP.filter(r=>!r.finalSobrePiso);
+    const catFPconMat = catFP.filter(r=>r.finalSobrePiso);
+    const catOK = interpretables.filter(r=>r.flagLabel==='Consistente');
+    const catNoSupera = interpretables.filter(r=>r.flagLabel==='No supera el % declarado');
+    const pctFP = interpretables.length ? (catFP.length/interpretables.length*100) : 0;
+
+    document.getElementById('kpiRowM').innerHTML = `
+      <div class="kpi"><div class="kpi-val">${total}</div><div class="kpi-label">Alertas</div></div>
+      <div class="kpi"><div class="kpi-val ok">${catOK.length}</div><div class="kpi-label">Consistentes</div></div>
+      <div class="kpi"><div class="kpi-val bad">${catFP.length}</div><div class="kpi-label">Falsos positivos estructurales</div></div>
+      <div class="kpi"><div class="kpi-val ${pctFP>=30?'bad':pctFP>0?'warn':'ok'}">${fmtPct(pctFP)}</div><div class="kpi-label">Tasa de FP estructural</div></div>
+    `;
+
+    function ejemplo(r){
+      return `base ${fmtUSD(r.baseUSD)} → final ${fmtUSD(r.finalUSD)} (variación ${fmtPct(r.variacionPct)}, perfil ${r.perfil})`;
+    }
+    function listaEjemplos(arr, n){
+      return arr.slice(0,n).map(r=>`<li>${ejemplo(r)}</li>`).join('');
+    }
+
+    let html = `<div class="diagnostic"><h4>Diagnóstico del gap</h4>`;
+    if(catFP.length>0){
+      html += `<p>La condición de piso (materialidad mínima en USD) no se está aplicando como filtro <strong>sobre el patrimonio base</strong> antes de evaluar la variación %. El resultado: alertas con base marginal muestran variaciones porcentuales infladas por tener un denominador pequeño, sin que eso implique un cambio patrimonial materialmente relevante en el punto de partida.</p>`;
+    } else {
+      html += `<p>No se detectó el patrón de piso-no-aplicado-sobre-la-base en este universo: las alertas interpretadas ya tienen su patrimonio base por sobre el piso de materialidad configurado.</p>`;
+    }
+    html += distribBarHTML([
+      {label:'Consistente', count:catOK.length, color:'var(--ok)'},
+      {label:'Falso positivo — final también bajo piso', count:catFPsinMat.length, color:'#8C2C3B'},
+      {label:'Falso positivo — final cruza el piso', count:catFPconMat.length, color:'#C77A54'},
+      {label:'No supera % declarado', count:catNoSupera.length, color:'var(--warn)'},
+    ]);
+    html += `</div>`;
+
+    html += `<h4 style="font-family:var(--serif);font-size:17px;margin:22px 0 12px;">Categorías de casos</h4>`;
+
+    html += `<div class="diagnostic"><h4>1. Falso positivo estructural — base bajo el piso, variación inflada por denominador pequeño</h4>
+      <p><strong>${catFP.length}</strong> de ${interpretables.length} alertas (${fmtPct(pctFP)}). El patrimonio base ya estaba por debajo del piso de materialidad; la variación % que gatilla la alerta es artefacto matemático de partir de una base casi nula, no una señal de comportamiento inusual en el punto de partida. Se divide en dos subtipos:</p>
+      <p style="margin-top:10px;"><strong>1a. Sin materialidad real (${catFPsinMat.length} casos)</strong> — ni la base ni el valor final superan el piso. El caso de menor señal posible.</p>
+      ${catFPsinMat.length ? `<ul>${listaEjemplos(catFPsinMat.sort((a,b)=>b.variacionPct-a.variacionPct),4)}</ul>` : '<p style="color:var(--ink-soft);font-size:13px;">Sin casos.</p>'}
+      <p style="margin-top:10px;"><strong>1b. Final cruza el piso (${catFPconMat.length} casos)</strong> — el problema de origen es el mismo (base bajo piso, % inflado), pero el valor final sí resulta material. Conviene mantener revisión manual de estos aunque se corrija la lógica del %, ya que pueden reflejar fondeo rápido y grande — señal relevante para PLAFT por otra vía distinta a la variación porcentual.</p>
+      ${catFPconMat.length ? `<ul>${listaEjemplos(catFPconMat.sort((a,b)=>b.variacionPct-a.variacionPct),4)}</ul>` : '<p style="color:var(--ink-soft);font-size:13px;">Sin casos.</p>'}
+    </div>`;
+
+    html += `<div class="diagnostic"><h4>2. Consistente — base sobre el piso y variación % real</h4>
+      <p><strong>${catOK.length}</strong> de ${interpretables.length} alertas. La base ya era materialmente relevante, por lo que la variación % sí es una señal razonable de cambio patrimonial.</p>
+      ${catOK.length ? `<p><strong>Ejemplos:</strong></p><ul>${listaEjemplos(catOK,3)}</ul>` : ''}
+    </div>`;
+
+    if(catNoSupera.length){
+      html += `<div class="diagnostic"><h4>3. No supera el % declarado por el motor</h4>
+      <p><strong>${catNoSupera.length}</strong> alertas donde la variación calculada aquí no alcanza el % que el propio motor declaró como condición de disparo — puede indicar descalce de tipo de cambio entre el día de la alerta y el valor fijo usado en este análisis, o un redondeo distinto en el cálculo original.</p>
+      <p><strong>Ejemplos:</strong></p><ul>${listaEjemplos(catNoSupera,3)}</ul></div>`;
+    }
+
+    html += `<h4 style="font-family:var(--serif);font-size:17px;margin:22px 0 12px;">Lógica actual vs. lógica propuesta</h4>
+    <div class="diagnostic">
+      <p><strong>Actual (implícita):</strong></p>
+      <div class="rule-block">SI variación% >= umbral_por_perfil ENTONCES gatilla</div>
+      <p><strong>Propuesta (AND explícito sobre la base, con excepción por monto final):</strong></p>
+      <div class="rule-block">GATILLA SI:
+  (patrimonio_base_USD >= piso) Y (variación% >= umbral_perfil)
+  O
+  patrimonio_final_USD >= piso_alto_absoluto   [ej. 2-3x el piso]</div>
+      <p style="font-size:13px;color:var(--ink-soft);">Con la propuesta, los casos 1a dejan de gatillar (sin materialidad en ningún punto). Los casos 1b se mantendrían bajo la cláusula de excepción por monto final, pero quedarían correctamente etiquetados como "fondeo rápido" en vez de "variación patrimonial", que es una alerta y un tratamiento distinto.</p>
+    </div>`;
+
+    html += `<div class="diagnostic"><h4>Impacto estimado del cambio de lógica</h4>`;
+    if(catFP.length>0){
+      html += `<p>Aplicar el AND sobre la base eliminaría directamente <strong>${catFPsinMat.length}</strong> alertas sin ninguna señal real (subcategoría 1a). Las <strong>${catFPconMat.length}</strong> alertas de la subcategoría 1b seguirían generándose bajo la cláusula de excepción, pero re-etiquetadas correctamente. En conjunto, el <strong>${fmtPct(pctFP)}</strong> del volumen de Materialidad corresponde a alertas gatilladas por un defecto de diseño en la condición de piso, no por comportamiento patrimonial inusual.</p>`;
+    } else {
+      html += `<p>No hay impacto proyectado: ninguna alerta de este universo caería fuera del listado si se aplica el AND explícito sobre la base.</p>`;
+    }
+    html += `</div>`;
+
+    html += `<div class="diagnostic"><h4>Conclusión</h4>
+      <p>${catFP.length>0
+        ? `De ${interpretables.length} alertas interpretadas, <strong>${catFP.length}</strong> (${fmtPct(pctFP)}) son falsos positivos estructurales por no exigir el piso como AND sobre la base — de ellas, ${catFPsinMat.length} sin ninguna materialidad real y ${catFPconMat.length} con materialidad solo al final. El resto (${catOK.length}) son alertas consistentes con el diseño esperado.`
+        : `No se identificó una tasa relevante de falsos positivos estructurales en este universo; el piso parece estarse respetando de forma efectiva sobre la base.`}</p>
+      <p style="margin-top:10px;"><strong>Desglose por perfil de riesgo:</strong></p>
+      ${perfilBreakdownHTML(interpretables)}
+      ${noInterp>0 ? `<p style="color:var(--ink-soft);font-size:13px;margin-top:10px;">${noInterp} fila(s) no se pudieron interpretar automáticamente por no calzar con el patrón de texto esperado — revisar manualmente en el detalle.</p>` : ''}
+    </div>`;
+
+    document.getElementById('reportM').innerHTML = html;
+
+    renderSortableTable({
+      tableEl: document.getElementById('tableM'),
+      barEl: document.getElementById('tableBarM'),
+      rows: results,
+      storageKey: 'tblM',
+      columns: [
+        {label:'N°', get:r=>r.n, sortGet:r=>r.n},
+        {label:'Fecha', get:r=>r.fecha||'—', sortGet:r=>r.fecha||'', cls:'txt'},
+        {label:'Perfil', get:r=>r.perfil?cap1(r.perfil):'—', sortGet:r=>r.perfil||'', cls:'txt'},
+        {label:'Tipo', get:r=>r.tipoPersona||'—', sortGet:r=>r.tipoPersona||'', cls:'txt'},
+        {label:'Base (USD)', get:r=>r.baseUSD!==undefined?fmtUSD(r.baseUSD):'—', sortGet:r=>r.baseUSD??-Infinity},
+        {label:'Final (USD)', get:r=>r.finalUSD!==undefined?fmtUSD(r.finalUSD):'—', sortGet:r=>r.finalUSD??-Infinity},
+        {label:'Variación %', get:r=>r.variacionPct!==undefined?fmtPct(r.variacionPct):'—', sortGet:r=>isFinite(r.variacionPct)?r.variacionPct:1e15},
+        {label:'Umbral', get:r=>r.umbral!==undefined?r.umbral+'%':'—', sortGet:r=>r.umbral??-Infinity},
+        {label:'Piso (USD)', get:r=>r.piso!==undefined?fmtUSD(r.piso):'—', sortGet:r=>r.piso??-Infinity},
+        {label:'¿Base ≥ piso?', get:r=>r.baseSobrePiso===undefined?'—':(r.baseSobrePiso?'Sí':'No'), sortGet:r=>r.baseSobrePiso?1:0, cls:'txt'},
+        {label:'Diagnóstico', get:r=>`<span class="flag ${r.flag}"><span class="dot"></span>${r.flagLabel}</span>`, sortGet:r=>r.flagLabel||'', cls:'txt'},
+      ]
+    });
+  }
+
+  // ---- Capital render ----
+  function renderCapital(results, params){
+    const empty = document.getElementById('emptyC');
+    const wrap = document.getElementById('tableWrapC');
+    if(!results.length){ empty.style.display='block'; wrap.style.display='none'; document.getElementById('kpiRowC').innerHTML=''; document.getElementById('reportC').innerHTML=''; return; }
+    empty.style.display='none'; wrap.style.display='block';
+
+    const interpretables = results.filter(r=>r.flagLabel!=='No interpretado');
+    const total = results.length;
+    const noInterp = total - interpretables.length;
+    const catSinRespaldo = interpretables.filter(r=>r.sinRespaldoPiso);
+    const catDrift = interpretables.filter(r=>r.flagLabel==='Posible drift de parámetro');
+    const catNoPiso = interpretables.filter(r=>r.flagLabel && r.flagLabel.startsWith('No cumple'));
+    const catBorde = interpretables.filter(r=>r.flagLabel==='Borde (cerca del piso UF)');
+    const catAlta = interpretables.filter(r=>r.flagLabel==='Alta materialidad');
+    const catConsistente = interpretables.filter(r=>r.flagLabel==='Consistente');
+    const pctDrift = interpretables.length ? (catDrift.length/interpretables.length*100) : 0;
+    const pctSinRespaldo = interpretables.length ? (catSinRespaldo.length/interpretables.length*100) : 0;
+    const totalProblema = catSinRespaldo.length + catDrift.length + catNoPiso.length;
+    const pctProblema = interpretables.length ? (totalProblema/interpretables.length*100) : 0;
+
+    document.getElementById('kpiRowC').innerHTML = `
+      <div class="kpi"><div class="kpi-val">${total}</div><div class="kpi-label">Alertas</div></div>
+      <div class="kpi"><div class="kpi-val ok">${catAlta.length}</div><div class="kpi-label">Alta materialidad</div></div>
+      <div class="kpi"><div class="kpi-val warn">${catBorde.length}</div><div class="kpi-label">Borde del piso UF</div></div>
+      <div class="kpi"><div class="kpi-val ${catSinRespaldo.length>0?'bad':'ok'}">${catSinRespaldo.length}</div><div class="kpi-label">OR mal ejecutado (sin piso)</div></div>
+      <div class="kpi"><div class="kpi-val ${catDrift.length>0?'bad':'ok'}">${fmtPct(pctDrift)}</div><div class="kpi-label">Posible drift de parámetro</div></div>
+    `;
+
+    function ejemplo(r){
+      return `monto ${fmtUSD(r.montoUSD)} (≈${fmtUF(r.montoUF)} UF), perfil ${r.perfil}, condiciones declaradas: 2x-promedio ${r.cond1Declared?'Sí':'No'} / piso UF ${r.cond2Declared?'Sí':'No'} / piso perfil ${r.cond3Declared?'Sí':'No'}`;
+    }
+    function listaEjemplos(arr, n){ return arr.slice(0,n).map(r=>`<li>${ejemplo(r)}</li>`).join(''); }
+
+    let html = `<div class="diagnostic"><h4>Diagnóstico del gap</h4>`;
+    if(catSinRespaldo.length>0){
+      html += `<p>Se detectaron <strong>${catSinRespaldo.length}</strong> alertas (${fmtPct(pctSinRespaldo)}) donde el motor gatilló usando <strong>solo</strong> la condición de multiplicador (2x promedio histórico), sin que el piso absoluto UF450 ni el piso por perfil formaran parte de las condiciones declaradas. Esto es evidencia directa de que el operador OR entre condiciones no está exigiendo el piso como filtro obligatorio en esos casos — contradice el diseño esperado, donde UF450 debería ser condición necesaria (AND) y las otras dos, condiciones adicionales sobre esa base.</p>`;
+    } else if(catDrift.length>0){
+      html += `<p>El piso UF actúa como gate absoluto en la gran mayoría del universo. El hallazgo relevante acá es de otro tipo: <strong>${catDrift.length}</strong> alertas muestran una condición declarada por el motor al momento de dispararse que no coincide con la que se recalcula usando los parámetros vigentes — señal de posible drift de parámetro o descalce de tipo de cambio/UF entre la fecha de la alerta y el valor fijo usado en el recálculo.</p>`;
+    } else {
+      html += `<p>El piso UF actúa como gate real en este universo: no se detecta el patrón de falso positivo por denominador pequeño que sí aparece en Materialidad, ni evidencia de que el OR esté permitiendo gatillos sin respaldo de piso.</p>`;
+    }
+    html += distribBarHTML([
+      {label:'Alta materialidad', count:catAlta.length, color:'var(--ok)'},
+      {label:'Consistente', count:catConsistente.length, color:'#5C8F73'},
+      {label:'Borde del piso', count:catBorde.length, color:'var(--warn)'},
+      {label:'OR mal ejecutado', count:catSinRespaldo.length, color:'#8C2C3B'},
+      {label:'Drift de parámetro', count:catDrift.length, color:'#C77A54'},
+      {label:'No cumple piso', count:catNoPiso.length, color:'var(--burgundy)'},
+    ]);
+    html += `</div>`;
+
+    html += `<h4 style="font-family:var(--serif);font-size:17px;margin:22px 0 12px;">Categorías de casos</h4>`;
+
+    let catN = 1;
+    if(catSinRespaldo.length){
+      html += `<div class="diagnostic"><h4>${catN++}. OR mal ejecutado — gatillada sin respaldo de piso</h4>
+      <p><strong>${catSinRespaldo.length}</strong> de ${interpretables.length} alertas (${fmtPct(pctSinRespaldo)}). El motor las gatilló solo por el multiplicador de 2x promedio, condición que por diseño no debería ser suficiente por sí sola.</p>
+      <p><strong>Ejemplos:</strong></p><ul>${listaEjemplos(catSinRespaldo,4)}</ul></div>`;
+    }
+    if(catDrift.length){
+      html += `<div class="diagnostic"><h4>${catN++}. Posible drift de parámetro</h4>
+      <p><strong>${catDrift.length}</strong> de ${interpretables.length} alertas (${fmtPct(pctDrift)}). Lo declarado como condición cumplida al momento de la alerta no coincide con el recálculo bajo los parámetros vigentes.</p>
+      <p><strong>Ejemplos:</strong></p><ul>${listaEjemplos(catDrift,4)}</ul></div>`;
+    }
+    if(catNoPiso.length){
+      html += `<div class="diagnostic"><h4>${catN++}. No cumple el piso absoluto UF</h4>
+      <p><strong>${catNoPiso.length}</strong> alertas figuran como gatilladas sin superar el piso UF configurado — revisar origen (posible error de carga o parámetro distinto en el período).</p>
+      <p><strong>Ejemplos:</strong></p><ul>${listaEjemplos(catNoPiso,4)}</ul></div>`;
+    }
+    html += `<div class="diagnostic"><h4>Alta materialidad / consistente / borde</h4>
+      <p><strong>${catAlta.length}</strong> alertas cumplen 2 o más condiciones simultáneas (alta materialidad); <strong>${catConsistente.length}</strong> cumplen el piso con una sola condición adicional; <strong>${catBorde.length}</strong> están apenas sobre el piso UF (dentro de un 10%) y serían las primeras en quedar fuera si se sube el umbral.</p>
+    </div>`;
+
+    html += `<h4 style="font-family:var(--serif);font-size:17px;margin:22px 0 12px;">Lógica actual vs. lógica propuesta</h4>
+    <div class="diagnostic">
+      <p><strong>Actual (parámetros vigentes, condiciones declaradas en cada alerta):</strong></p>
+      <div class="rule-block">GATILLA SI:
+  abono > UF450          [piso absoluto, debería ser AND obligatorio]
+  Y/O abono > 2x promedio histórico del cliente
+  Y/O (perfil Bajo/Medio Y abono > USD100.000)</div>
+      <p><strong>Propuesta (piso como AND explícito, no como una condición más del OR):</strong></p>
+      <div class="rule-block">GATILLA SI:
+  (abono > UF450)  Y  (abono > 2x promedio  O  (perfil Bajo/Medio Y abono > USD100.000))</div>
+      <p><strong>Recomendación:</strong> revisar en el motor si UF450 está implementado como condición obligatoria (AND) o como una tercera opción dentro del OR — la diferencia es exactamente la que separa las ${catSinRespaldo.length} alertas de la categoría 1 del resto.</p>
+    </div>`;
+
+    html += `<div class="diagnostic"><h4>Impacto estimado del cambio de lógica</h4>`;
+    if(totalProblema>0){
+      html += `<p>De las <strong>${interpretables.length}</strong> alertas interpretadas, <strong>${totalProblema}</strong> (${fmtPct(pctProblema)}) presentan algún problema de lógica o de consistencia de parámetro: ${catSinRespaldo.length} por OR mal ejecutado, ${catDrift.length} por drift de parámetro, ${catNoPiso.length} por no cumplir el piso. Exigir el piso UF450 como AND obligatorio habría evitado específicamente las ${catSinRespaldo.length} alertas de la categoría 1, sin afectar las ${catAlta.length+catConsistente.length+catBorde.length} alertas que sí cumplen el piso.</p>`;
+    } else {
+      html += `<p>No se proyecta un cambio de lógica necesario para este universo: todas las alertas interpretadas cumplen el piso UF y no muestran drift respecto a los parámetros vigentes.</p>`;
+    }
+    html += `</div>`;
+
+    html += `<div class="diagnostic"><h4>Conclusión</h4>
+      <p>${totalProblema>0
+        ? `El gap principal detectado en Aporte de Capital es ${catSinRespaldo.length>0?'de diseño/implementación: el operador OR está permitiendo que el multiplicador de 2x promedio gatille sin el respaldo del piso absoluto':'de consistencia de parámetros entre lo aplicado en producción y lo recalculado'} — conviene revisar con el equipo técnico cómo está codificada la combinación de condiciones en el motor.`
+        : `No se identificaron gaps estructurales en Aporte de Capital para este universo; el diseño de la regla (piso UF + condiciones adicionales) se comporta de forma consistente.`}</p>
+      <p style="margin-top:10px;"><strong>Desglose por perfil de riesgo:</strong></p>
+      ${perfilBreakdownHTML(interpretables)}
+      ${noInterp>0 ? `<p style="color:var(--ink-soft);font-size:13px;margin-top:10px;">${noInterp} fila(s) no se pudieron interpretar automáticamente por no calzar con el patrón de texto esperado — revisar manualmente en el detalle.</p>` : ''}
+    </div>`;
+
+    document.getElementById('reportC').innerHTML = html;
+
+    renderSortableTable({
+      tableEl: document.getElementById('tableC'),
+      barEl: document.getElementById('tableBarC'),
+      rows: results,
+      storageKey: 'tblC',
+      columns: [
+        {label:'N°', get:r=>r.n, sortGet:r=>r.n},
+        {label:'Fecha', get:r=>r.fecha||'—', sortGet:r=>r.fecha||'', cls:'txt'},
+        {label:'Perfil', get:r=>r.perfil?cap1(r.perfil):'—', sortGet:r=>r.perfil||'', cls:'txt'},
+        {label:'Monto (USD)', get:r=>r.montoUSD!==undefined?fmtUSD(r.montoUSD):'—', sortGet:r=>r.montoUSD??-Infinity},
+        {label:'Monto (UF)', get:r=>r.montoUF!==undefined?fmtUF(r.montoUF):'—', sortGet:r=>r.montoUF??-Infinity},
+        {label:'2x prom. (decl.)', get:r=>r.cond1Declared===undefined?'—':(r.cond1Declared?'Sí':'No'), sortGet:r=>r.cond1Declared?1:0, cls:'txt'},
+        {label:'Piso UF (decl.)', get:r=>r.cond2Declared===undefined?'—':(r.cond2Declared?'Sí':'No'), sortGet:r=>r.cond2Declared?1:0, cls:'txt'},
+        {label:'Piso UF (recalc.)', get:r=>r.cond2Recalc===undefined?'—':(r.cond2Recalc?'Sí':'No'), sortGet:r=>r.cond2Recalc?1:0, cls:'txt'},
+        {label:'Piso perfil (decl.)', get:r=>r.cond3Declared===undefined?'—':(r.cond3Declared?'Sí':'No'), sortGet:r=>r.cond3Declared?1:0, cls:'txt'},
+        {label:'Piso perfil (recalc.)', get:r=>r.cond3Recalc===undefined?'—':(r.cond3Recalc?'Sí':'No'), sortGet:r=>r.cond3Recalc?1:0, cls:'txt'},
+        {label:'Condiciones', get:r=>r.condCount!==undefined?r.condCount+'/3':'—', sortGet:r=>r.condCount??-1},
+        {label:'Diagnóstico', get:r=>`<span class="flag ${r.flag}"><span class="dot"></span>${r.flagLabel}</span>`, sortGet:r=>r.flagLabel||'', cls:'txt'},
+      ]
+    });
+  }
+
+  // ---- Resumen ejecutivo ----
+  function renderExecutiveSummary(s){
+    const el = document.getElementById('execSummary');
+    if(s.total===0){ el.innerHTML=''; return; }
+    const partes = [];
+    partes.push(`Se analizaron <strong>${s.total}</strong> alertas del período.`);
+    if(s.mInterp>0){
+      partes.push(`En Materialidad, <strong>${fmtPct(s.mPctFP)}</strong> (${s.mFP} de ${s.mInterp}) son falsos positivos estructurales por no exigir el piso como AND sobre la base.`);
+    }
+    if(s.cInterp>0){
+      partes.push(`En Aporte de Capital, <strong>${fmtPct(s.cPctProblema)}</strong> (${s.cProblemaCount} de ${s.cInterp}) presentan un problema de lógica o de consistencia de parámetro.`);
+    }
+    if(s.backlog){
+      partes.push(`Hay <strong>${s.backlog.count}</strong> alertas abiertas, con una antigüedad promedio de <strong>${s.backlog.avg.toFixed(0)} días</strong> (máximo ${s.backlog.max} días).`);
+    }
+    if(s.trend && s.trend.length>=2){
+      const totalAll = s.trend.reduce((a,p)=>a+p.total,0);
+      const avgPct = s.trend.reduce((a,p)=>a+p.fp,0)/totalAll*100;
+      const last = s.trend[s.trend.length-1];
+      const lastPct = last.total ? last.fp/last.total*100 : 0;
+      if(lastPct > avgPct*1.2) partes.push(`La tasa de falso positivo viene <strong>al alza</strong> en las últimas semanas respecto al promedio del período.`);
+      else if(lastPct < avgPct*0.8) partes.push(`La tasa de falso positivo viene <strong>a la baja</strong> en las últimas semanas respecto al promedio del período.`);
+      else partes.push(`La tasa de falso positivo se mantiene relativamente estable semana a semana.`);
+    }
+    el.innerHTML = `<div class="diagnostic" style="border-left-color:var(--ink);"><h4>Resumen ejecutivo</h4><p>${partes.join(' ')}</p></div>`;
+  }
+
+  // ---- Backlog ----
+  function renderBacklog(backlog){
+    const el = document.getElementById('backlogSection');
+    if(!backlog){ el.innerHTML = `<div class="diagnostic"><h4>Antigüedad de alertas abiertas</h4><p>No hay alertas marcadas como "abiertas" con fecha interpretable en este universo, o no se mapeó columna de estado / fecha de cierre.</p></div>`; return; }
+    el.innerHTML = `<div class="diagnostic">
+      <h4>Antigüedad de alertas abiertas</h4>
+      <p><strong>${backlog.count}</strong> alertas abiertas al día de hoy. Antigüedad promedio: <strong>${backlog.avg.toFixed(0)} días</strong>. Máxima: <strong>${backlog.max} días</strong>.
+      ${backlog.sinFecha>0 ? ` (${backlog.sinFecha} abierta(s) sin fecha interpretable, no incluidas en el cálculo.)` : ''}</p>
+      ${distribBarHTML(backlog.buckets.map((b,i)=>({label:b.label, count:b.count, color:['var(--ok)','var(--warn)','#C77A54','var(--bad)'][i]})), 'Distribución de antigüedad')}
+      <p style="font-size:13px;color:var(--ink-soft);margin-top:8px;">Un backlog concentrado en "más de 30 días" suele indicar cuello de botella de revisión más que un problema de la lógica de la alerta en sí.</p>
+    </div>`;
+  }
+
+  // ---- Tendencia temporal ----
+  function renderTrend(periods){
+    const el = document.getElementById('trendSection');
+    if(!periods){ el.innerHTML = `<div class="diagnostic"><h4>Tendencia temporal</h4><p>No hay suficientes semanas distintas con fecha interpretable en este universo para construir una tendencia — mapea la columna de fecha si aún no lo hiciste.</p></div>`; return; }
+    const maxPct = Math.max(...periods.map(p=>p.total?p.fp/p.total*100:0), 1);
+    const rows = periods.map(p=>{
+      const pct = p.total ? (p.fp/p.total*100) : 0;
+      const barPct = (pct/maxPct*100).toFixed(0);
+      return `<tr>
+        <td class="txt">Semana del ${fmtDateShort(p.date)}</td>
+        <td>${p.total}</td>
+        <td>${p.fp}</td>
+        <td>${fmtPct(pct)}</td>
+        <td style="min-width:120px;"><div style="background:var(--panel);height:10px;width:100%;"><div style="background:${pct>=30?'var(--bad)':pct>0?'var(--warn)':'var(--ok)'};height:10px;width:${barPct}%;"></div></div></td>
+      </tr>`;
+    }).join('');
+    el.innerHTML = `<div class="diagnostic">
+      <h4>Tendencia temporal (por semana)</h4>
+      <p>Volumen de alertas y tasa de falso positivo / problema de lógica por semana, combinando Materialidad y Capital.</p>
+      <table class="results-table" style="margin-top:8px;"><thead><tr><th>Semana</th><th>Total</th><th>FP / problema</th><th>Tasa</th><th>​</th></tr></thead><tbody>${rows}</tbody></table>
+    </div>`;
+  }
+
+  // ---- Sensibilidad del piso ----
+  function renderSensibilidad(rows, params){
+    const el = document.getElementById('sensibilidadSection');
+    if(!rows){ el.innerHTML = `<div class="diagnostic"><h4>Sensibilidad del piso de Materialidad</h4><p>No hay alertas de Materialidad interpretables en este universo para simular distintos valores de piso.</p></div>`; return; }
+    const trs = rows.map(r=>`<tr ${r.esActual?'style="background:var(--panel);font-weight:600;"':''}>
+      <td>${fmtUSD(r.pisoPN)}${r.esActual?' (actual)':''}</td>
+      <td>${fmtUSD(r.pisoPJ)}</td>
+      <td>${r.fp}/${r.total}</td>
+      <td>${fmtPct(r.pct)}</td>
+    </tr>`).join('');
+    el.innerHTML = `<div class="diagnostic">
+      <h4>Sensibilidad del piso de Materialidad</h4>
+      <p>Si se moviera el piso de materialidad (manteniendo la misma proporción PN/PJ configurada), así cambiaría la tasa de falso positivo estructural sobre las alertas de este universo:</p>
+      <table class="results-table" style="margin-top:8px;"><thead><tr><th>Piso PN (USD)</th><th>Piso PJ (USD)</th><th>Alertas que seguirían siendo FP</th><th>Tasa FP</th></tr></thead><tbody>${trs}</tbody></table>
+      <p style="font-size:13px;color:var(--ink-soft);margin-top:8px;">Un piso más bajo reduce la tasa de FP pero también reduce la sensibilidad del modelo a cambios patrimoniales genuinos en cuentas pequeñas — es un trade-off, no una respuesta única.</p>
+    </div>`;
+  }
+
+  document.getElementById('btnPrint').addEventListener('click', ()=>{ window.print(); });
+
+})();
+</script>
+</body>
+</html>

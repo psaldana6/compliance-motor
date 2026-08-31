@@ -1,0 +1,2482 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Motor de Sensibilidad PLAFT — CESANTE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root{
+    --bg:#EEF1F5;
+    --panel:#FFFFFF;
+    --line:#D8DEE6;
+    --line-strong:#B9C3D0;
+    --ink:#16233A;
+    --ink-soft:#54627A;
+    --accent:#2C5F8A;
+    --accent-soft:#E4EDF5;
+    --bajo:#2F7D53;
+    --bajo-bg:#E4F3EA;
+    --medio:#B9791A;
+    --medio-bg:#FBF0DC;
+    --alto:#B23B3B;
+    --alto-bg:#FAE4E4;
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+    --sans: 'IBM Plex Sans', -apple-system, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--sans);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1280px;margin:0 auto;padding:28px 24px 64px;}
+
+  /* ---------- Header ---------- */
+  header{
+    display:flex; justify-content:space-between; align-items:flex-end; gap:24px;
+    border-bottom:2px solid var(--ink); padding-bottom:18px; margin-bottom:28px;
+    flex-wrap:wrap;
+  }
+  .eyebrow{
+    font-family:var(--mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--accent); font-weight:600; margin-bottom:6px;
+  }
+  h1{font-size:28px; margin:0 0 6px; font-weight:700; letter-spacing:-0.01em;}
+  .subtitle{color:var(--ink-soft); font-size:14px; max-width:620px;}
+  .status-badge{
+    font-family:var(--mono); font-size:12px; padding:8px 14px; border-radius:3px;
+    border:1px solid var(--line-strong); background:var(--panel); text-align:right; min-width:190px;
+  }
+  .status-badge .label{color:var(--ink-soft); font-size:10px; letter-spacing:.08em; text-transform:uppercase; display:block; margin-bottom:4px;}
+  .status-badge .value{font-size:18px; font-weight:700;}
+
+  /* ---------- Layout ---------- */
+  .grid{display:grid; grid-template-columns:340px 1fr; gap:24px; align-items:start;}
+  @media (max-width: 880px){ .grid{grid-template-columns:1fr;} }
+
+  .panel{
+    background:var(--panel); border:1px solid var(--line); border-radius:6px;
+    padding:20px; margin-bottom:20px;
+  }
+  .panel h2{
+    font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-soft);
+    font-weight:600; margin:0 0 16px; padding-bottom:10px; border-bottom:1px solid var(--line);
+  }
+  .panel p.hint{font-size:12.5px; color:var(--ink-soft); margin:0 0 16px;}
+
+  /* ---------- Controls ---------- */
+  .field{margin-bottom:18px;}
+  .field:last-child{margin-bottom:0;}
+  .field-row{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;}
+  .field label{font-size:13px; font-weight:600;}
+  .field .tag{
+    font-family:var(--mono); font-size:11px; padding:2px 6px; border-radius:3px;
+    background:var(--accent-soft); color:var(--accent); font-weight:600;
+  }
+  .field input[type=range]{width:100%; accent-color:var(--accent); margin:6px 0 4px;}
+  .field .valrow{display:flex; justify-content:space-between; align-items:center; gap:8px;}
+  .field input[type=number]{
+    font-family:var(--mono); font-size:14px; font-weight:600; width:78px; padding:5px 7px;
+    border:1px solid var(--line-strong); border-radius:4px; color:var(--ink); background:#fff;
+  }
+  .field .score-out{font-family:var(--mono); font-size:12px; color:var(--ink-soft);}
+
+  .segmented{display:flex; border:1px solid var(--line-strong); border-radius:5px; overflow:hidden;}
+  .segmented button{
+    flex:1; border:none; background:var(--panel); padding:9px 6px; font-family:var(--sans);
+    font-size:12.5px; font-weight:600; color:var(--ink-soft); cursor:pointer; border-right:1px solid var(--line);
+    transition:background .15s, color .15s;
+  }
+  .segmented button:last-child{border-right:none;}
+  .segmented button.active{background:var(--accent); color:#fff;}
+  .segmented button:hover:not(.active){background:var(--accent-soft);}
+
+  .switch-row{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  .switch-row .txt{font-size:12.5px; color:var(--ink-soft); max-width:250px;}
+  .switch{position:relative; width:40px; height:22px; flex:none;}
+  .switch input{opacity:0; width:0; height:0;}
+  .slider-toggle{
+    position:absolute; cursor:pointer; inset:0; background:#C7CEDA; border-radius:22px; transition:.15s;
+  }
+  .slider-toggle:before{
+    content:""; position:absolute; height:16px; width:16px; left:3px; top:3px; background:#fff;
+    border-radius:50%; transition:.15s;
+  }
+  .switch input:checked + .slider-toggle{background:var(--accent);}
+  .switch input:checked + .slider-toggle:before{transform:translateX(18px);}
+
+  .btn-reset{
+    width:100%; margin-top:4px; padding:9px; border-radius:5px; border:1px solid var(--line-strong);
+    background:#fff; color:var(--ink); font-family:var(--sans); font-size:12.5px; font-weight:600;
+    cursor:pointer; transition:background .15s;
+  }
+  .btn-reset:hover{background:var(--accent-soft); border-color:var(--accent);}
+
+  /* ---------- Chart & gauge ---------- */
+  .chart-card{position:relative; height:340px;}
+  .gauge-wrap{display:flex; gap:28px; flex-wrap:wrap; align-items:center; margin-top:6px;}
+  .gauge{flex:1; min-width:260px;}
+  .gauge-track{position:relative; height:14px; border-radius:7px; overflow:hidden; display:flex;}
+  .gauge-track .seg{height:100%;}
+  .gauge-track .seg.b{background:var(--bajo);}
+  .gauge-track .seg.m{background:var(--medio);}
+  .gauge-track .seg.a{background:var(--alto);}
+  .gauge-marker{
+    position:absolute; top:-6px; width:2px; height:26px; background:var(--ink);
+    transition:left .2s ease;
+  }
+  .gauge-marker::after{
+    content:attr(data-val); position:absolute; top:-20px; left:50%; transform:translateX(-50%);
+    font-family:var(--mono); font-size:11px; font-weight:700; white-space:nowrap;
+  }
+  .gauge-labels{display:flex; justify-content:space-between; font-family:var(--mono); font-size:10.5px; color:var(--ink-soft); margin-top:6px;}
+
+  /* ---------- Matrix table ---------- */
+  table.matrix{width:100%; border-collapse:collapse; font-size:13px;}
+  table.matrix th{
+    text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft);
+    font-weight:600; padding:8px 10px; border-bottom:2px solid var(--ink); background:#fff;
+  }
+  table.matrix td{padding:9px 10px; border-bottom:1px solid var(--line); font-family:var(--mono);}
+  table.matrix tr:last-child td{border-bottom:none;}
+  table.matrix td.num{text-align:right;}
+  .pill{
+    display:inline-block; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:700;
+    font-family:var(--mono);
+  }
+  .pill.BAJO{background:var(--bajo-bg); color:var(--bajo);}
+  .pill.MEDIO{background:var(--medio-bg); color:var(--medio);}
+  .pill.ALTO{background:var(--alto-bg); color:var(--alto);}
+  .row-highlight{background:var(--accent-soft);}
+
+  /* ---------- Recommendation ---------- */
+  .reco{
+    display:grid; grid-template-columns:auto 1fr; gap:20px; align-items:start;
+  }
+  @media (max-width:640px){ .reco{grid-template-columns:1fr;} }
+  .reco-value{
+    font-family:var(--mono); font-size:38px; font-weight:700; color:var(--accent);
+    border:2px solid var(--accent); border-radius:8px; padding:14px 22px; text-align:center; min-width:140px;
+  }
+  .reco-value .lbl{display:block; font-family:var(--sans); font-size:10px; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--ink-soft); font-weight:600; margin-bottom:6px;}
+  .reco-text{font-size:13.5px; color:var(--ink-soft);}
+  .reco-text b{color:var(--ink);}
+
+  footer{margin-top:32px; padding-top:16px; border-top:1px solid var(--line); font-size:11.5px; color:var(--ink-soft); font-family:var(--mono);}
+
+  /* ---------- Carga de archivo ---------- */
+  .upload-panel{
+    background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:16px 20px; margin-bottom:20px;
+    display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+  }
+  .dropzone{
+    flex:1; min-width:260px; border:2px dashed var(--line-strong); border-radius:6px; padding:14px 16px;
+    display:flex; align-items:center; gap:12px; cursor:pointer; transition:border-color .15s, background .15s;
+  }
+  .dropzone:hover, .dropzone.drag{border-color:var(--accent); background:var(--accent-soft);}
+  .dropzone svg{flex:none;}
+  .dropzone .dz-text{font-size:12.5px; color:var(--ink-soft);}
+  .dropzone .dz-text b{color:var(--ink); font-size:13.5px;}
+  .upload-status{
+    font-family:var(--mono); font-size:12px; padding:8px 14px; border-radius:5px; min-width:220px;
+    border:1px solid var(--line-strong); background:#fff;
+  }
+  .upload-status.ok{border-color:var(--bajo); background:var(--bajo-bg); color:var(--bajo);}
+  .upload-status.err{border-color:var(--alto); background:var(--alto-bg); color:var(--alto);}
+  .upload-status .label{display:block; font-size:10px; text-transform:uppercase; letter-spacing:.06em; opacity:.75; margin-bottom:3px;}
+  #fileInput{display:none;}
+  .btn-clear{
+    font-family:var(--sans); font-size:12px; font-weight:600; color:var(--ink-soft); background:none;
+    border:1px solid var(--line-strong); border-radius:5px; padding:8px 12px; cursor:pointer;
+  }
+  .btn-clear:hover{background:var(--accent-soft); color:var(--accent); border-color:var(--accent);}
+
+  /* ---------- Tabs ---------- */
+  .tabbar{display:flex; gap:4px; margin-bottom:22px; border-bottom:2px solid var(--ink);}
+  .tabbar button{
+    font-family:var(--sans); font-size:13.5px; font-weight:600; color:var(--ink-soft);
+    background:none; border:none; padding:10px 18px; cursor:pointer; border-radius:5px 5px 0 0;
+    position:relative; top:2px;
+  }
+  .tabbar button.active{color:var(--ink); background:var(--panel); border:2px solid var(--ink); border-bottom:2px solid var(--panel);}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
+
+  /* ---------- Perfilamiento manual ---------- */
+  .manual-locked{
+    background:var(--panel); border:1px dashed var(--line-strong); border-radius:6px; padding:40px 24px;
+    text-align:center; color:var(--ink-soft); font-size:13.5px;
+  }
+  .manual-locked b{color:var(--ink); display:block; font-size:15px; margin-bottom:8px;}
+  .qform{display:grid; grid-template-columns:1fr; gap:0;}
+  .qrow{
+    display:grid; grid-template-columns:230px 1fr 100px; gap:14px; align-items:center;
+    padding:11px 0; border-bottom:1px solid var(--line);
+  }
+  .qrow:last-child{border-bottom:none;}
+  .qrow .qlabel{font-size:12.5px; font-weight:600;}
+  .qrow .qlabel .qid{font-family:var(--mono); font-size:10.5px; color:var(--accent); display:block; margin-bottom:2px;}
+  .qrow input.qinput{
+    width:100%; font-family:var(--sans); font-size:13px; padding:8px 10px; border:1px solid var(--line-strong);
+    border-radius:4px; background:#fff; color:var(--ink);
+  }
+  .qrow input.qinput.invalid{border-color:var(--alto); background:var(--alto-bg);}
+  .qrow .qscore{font-family:var(--mono); font-size:13px; text-align:right; color:var(--ink-soft); font-weight:600;}
+  .qrow .qscore.invalid{color:var(--alto);}
+
+  .manual-results{position:sticky; top:16px;}
+  .breakdown-table{width:100%; border-collapse:collapse; font-size:12px; margin-top:4px;}
+  .breakdown-table th{
+    text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft);
+    font-weight:600; padding:6px 8px; border-bottom:2px solid var(--ink);
+  }
+  .breakdown-table td{padding:6px 8px; border-bottom:1px solid var(--line); font-family:var(--mono);}
+  .breakdown-table td.num{text-align:right;}
+  .breakdown-table tr.top1 td{background:var(--alto-bg);}
+  .breakdown-table tr.top2 td{background:var(--medio-bg);}
+  .trigger-list{list-style:none; margin:8px 0 0; padding:0; font-size:12px;}
+  .trigger-list li{padding:4px 0; border-bottom:1px solid var(--line); color:var(--ink-soft);}
+  .trigger-list li:last-child{border-bottom:none;}
+  .trigger-list li.on{color:var(--alto); font-weight:600;}
+
+  /* ---------- Acordeón de preguntas (Análisis Manual) ---------- */
+  .qaccordion{border:1px solid var(--line); border-radius:6px; overflow:hidden;}
+  .qa-item{border-bottom:1px solid var(--line);}
+  .qa-item:last-child{border-bottom:none;}
+  .qa-header{
+    width:100%; display:flex; align-items:center; gap:10px; padding:10px 14px;
+    background:#fff; border:none; cursor:pointer; text-align:left; font-family:var(--sans);
+  }
+  .qa-header:hover{background:var(--accent-soft);}
+  .qa-qid{font-family:var(--mono); font-size:11px; color:var(--accent); font-weight:700; width:24px; flex:none;}
+  .qa-label{font-size:12.5px; font-weight:600; flex:1; min-width:0;}
+  .qa-current{font-size:11.5px; color:var(--ink-soft); max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:none;}
+  .qa-score{font-family:var(--mono); font-size:12px; font-weight:700; color:var(--accent); width:50px; text-align:right; flex:none;}
+  .qa-chevron{flex:none; color:var(--ink-soft); font-size:11px; transition:transform .15s;}
+  .qa-item.open .qa-chevron{transform:rotate(180deg);}
+  .qa-body{display:none; background:#FAFBFC; border-top:1px solid var(--line); padding:10px 14px;}
+  .qa-item.open .qa-body{display:block;}
+  .qa-filter{width:100%; padding:6px 9px; margin-bottom:8px; border:1px solid var(--line-strong); border-radius:4px; font-size:12.5px; font-family:var(--sans);}
+  .qa-options{max-height:280px; overflow-y:auto;}
+  .qa-option{display:flex; justify-content:space-between; gap:10px; padding:6px 8px; border-radius:4px; cursor:pointer; font-size:12px;}
+  .qa-option:hover{background:var(--accent-soft);}
+  .qa-option.selected{background:var(--bajo-bg); font-weight:700;}
+  .qa-option .qa-opt-score{font-family:var(--mono); color:var(--ink-soft); flex:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="upload-panel">
+    <label class="dropzone" id="dropzone" for="fileInput">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#2C5F8A" stroke-width="1.6"><path d="M12 3v12m0-12 4 4m-4-4-4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+      <span class="dz-text"><b>Cargar Matriz_Riesgo_PLAFT.xlsx</b><br>Arrastra el archivo aquí o haz clic para seleccionarlo. Se lee en tu navegador — no se envía a ningún servidor.</span>
+    </label>
+    <input type="file" id="fileInput" accept=".xlsx">
+    <div class="upload-status" id="uploadStatus">
+      <span class="label">Fuente de datos</span>
+      Datos de referencia embebidos (sin archivo cargado)
+    </div>
+    <button class="btn-clear" id="btnClear">Usar datos de referencia</button>
+  </div>
+  <div class="upload-status err" id="riesgoAutoWarning" style="display:none; margin:-10px 0 20px; max-width:100%;"></div>
+
+  <header>
+    <div>
+      <div class="eyebrow">Motor de Perfilamiento PLAFT V5.1 · Corredora de bolsa</div>
+      <h1>Motor de Sensibilidad — CESANTE (Pregunta P5, Ocupación)</h1>
+      <div class="subtitle">Ajusta las tres ponderaciones candidatas y la intensidad del resto de variables comportamentales. Los gatillantes de Riesgo Automático (PEP, Cargo Estado, Nacionalidad, País tributario, moneda extranjera a terceros) quedan neutralizados por defecto para aislar el efecto puro de la ponderación de ocupación. Carga <b>Matriz_Riesgo_PLAFT.xlsx</b> abajo para usar las ponderaciones vigentes en vez de los datos de referencia.</div>
+    </div>
+    <div class="status-badge">
+      <span class="label">Escenario seleccionado</span>
+      <span class="value" id="badgeEscenario">Arriesgado</span>
+      <div style="margin-top:6px; font-size:11px; color:var(--ink-soft);">Score normalizado: <span id="badgeScore" style="font-weight:700;color:var(--ink);">—</span> · <span class="pill" id="badgePill">—</span></div>
+      <div style="margin-top:4px; font-size:11px; color:var(--ink-soft);">Debida diligencia: <span id="badgeDD" style="font-weight:700;color:var(--accent);">—</span></div>
+    </div>
+  </header>
+
+  <div class="tabbar">
+    <button class="active" data-tab="tab-cesante">Sensibilidad CESANTE</button>
+    <button data-tab="tab-manual">Perfilamiento Manual</button>
+    <button data-tab="tab-analysis">Análisis Manual</button>
+    <button data-tab="tab-stress">Test de Stress — Otras Variables</button>
+    <button data-tab="tab-diff">Comparar Versiones</button>
+  </div>
+
+  <div id="tab-cesante" class="tab-panel active">
+  <div class="grid">
+
+    <!-- ================= CONTROLES ================= -->
+    <div>
+      <div class="panel">
+        <h2>Ponderaciones candidatas de CESANTE</h2>
+        <p class="hint">Rango del catálogo P5 vigente: 0,10 – 0,20. Puedes probar valores fuera de ese rango.</p>
+
+        <div class="field" data-field="Conservador">
+          <div class="field-row"><label>Conservador</label><span class="tag" id="tag-Conservador">BAJO</span></div>
+          <input type="range" min="0" max="0.60" step="0.01" value="0.10" id="range-Conservador">
+          <div class="valrow">
+            <input type="number" min="0" max="1" step="0.01" value="0.10" id="num-Conservador">
+            <span class="score-out">Score P5 = <span id="score-Conservador">0.50</span></span>
+          </div>
+        </div>
+
+        <div class="field" data-field="Promedio">
+          <div class="field-row"><label>Promedio</label><span class="tag" id="tag-Promedio">BAJO</span></div>
+          <input type="range" min="0" max="0.60" step="0.01" value="0.20" id="range-Promedio">
+          <div class="valrow">
+            <input type="number" min="0" max="1" step="0.01" value="0.20" id="num-Promedio">
+            <span class="score-out">Score P5 = <span id="score-Promedio">1.00</span></span>
+          </div>
+        </div>
+
+        <div class="field" data-field="Arriesgado">
+          <div class="field-row"><label>Arriesgado</label><span class="tag" id="tag-Arriesgado">BAJO</span></div>
+          <input type="range" min="0" max="0.60" step="0.01" value="0.30" id="range-Arriesgado">
+          <div class="valrow">
+            <input type="number" min="0" max="1" step="0.01" value="0.30" id="num-Arriesgado">
+            <span class="score-out">Score P5 = <span id="score-Arriesgado">1.50</span></span>
+          </div>
+        </div>
+
+        <button class="btn-reset" id="btnReset">Restablecer valores sugeridos (0,10 / 0,20 / 0,30)</button>
+      </div>
+
+      <div class="panel">
+        <h2>Intensidad — resto de variables no-gatillantes</h2>
+        <p class="hint">Afecta P1, P2, P3, P4, P9, P12, P13, P14 (comportamentales). Selecciona el escenario destacado en el panel principal.</p>
+        <div class="segmented" id="segIntensidad">
+          <button data-val="Conservador" class="active">Conservador</button>
+          <button data-val="Promedio">Promedio</button>
+          <button data-val="Extremo">Extremo</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Gatillantes de riesgo automático</h2>
+        <div class="switch-row">
+          <span class="txt">Mantener neutralizados (PEP=NO, Cargo Estado=NO, Nacionalidad/País tributario=Chile, FX terceros=NO)</span>
+          <label class="switch">
+            <input type="checkbox" id="toggleGatillantes" checked>
+            <span class="slider-toggle"></span>
+          </label>
+        </div>
+        <p class="hint" style="margin-top:12px; margin-bottom:0;">Al desactivar, se simula el peor caso (todos los gatillantes activados) para mostrar por qué el motor los trata aparte del puntaje de ocupación.</p>
+      </div>
+    </div>
+
+    <!-- ================= RESULTADOS ================= -->
+    <div>
+      <div class="panel">
+        <h2>Test de stress — Score normalizado por escenario CESANTE</h2>
+        <div class="chart-card"><canvas id="stressChart"></canvas></div>
+      </div>
+
+      <div class="panel">
+        <h2>Escenario destacado: <span id="gaugeTitle">Arriesgado · Intensidad Conservador</span></h2>
+        <div class="gauge-wrap">
+          <div class="gauge">
+            <div class="gauge-track">
+              <div class="seg b" style="width:33.4%"></div>
+              <div class="seg m" style="width:33.3%"></div>
+              <div class="seg a" style="width:33.3%"></div>
+            </div>
+            <div style="position:relative;">
+              <div class="gauge-marker" id="gaugeMarker" data-val="0" style="left:0%;"></div>
+            </div>
+            <div class="gauge-labels"><span>0</span><span>33,4</span><span>66,7</span><span>100</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Matriz de sensibilidad (3 × 3)</h2>
+        <table class="matrix">
+          <thead>
+            <tr><th>Ponderación CESANTE</th><th>Intensidad</th><th class="num">Total</th><th class="num">Score norm.</th><th>Clasificación</th><th>Debida diligencia</th></tr>
+          </thead>
+          <tbody id="matrixBody"></tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <h2>Valor sugerido para CESANTE</h2>
+        <div class="reco">
+          <div class="reco-value"><span class="lbl">Ponderación</span>0,20</div>
+          <div class="reco-text">
+            En las 9 combinaciones testeadas la clasificación se mantiene <b>BAJO</b> mientras los gatillantes automáticos
+            están neutralizados: la ponderación de ocupación, por sí sola, no mueve el perfil a Medio o Alto.
+            Dado el <b>bajo apetito al riesgo de los controladores</b> de la corredora, se recomienda <b>0,20</b> —
+            la misma banda ya usada para Dueña de Casa y Estudiante (categorías sin ingreso laboral estable,
+            marcadas "Alto" en el propio catálogo P5) — en vez del mínimo actual (0,10, igual a Pensionado/Rentista),
+            porque un cliente Cesante presenta mayor dificultad de verificación de origen de fondos.
+            Usa el panel de la izquierda para probar <b>0,30</b> u otros valores y comparar el efecto en vivo.
+            El control real de un Cesante de mayor riesgo (PEP, cargo público, jurisdicción, FX a terceros) sigue
+            a cargo de los gatillantes automáticos, no de este puntaje.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div><!-- /tab-cesante -->
+
+  <div id="tab-manual" class="tab-panel">
+    <div id="manualLocked" class="manual-locked">
+      <b>Perfilamiento manual deshabilitado</b>
+      Carga <b>Matriz_Riesgo_PLAFT.xlsx</b> arriba para habilitar el formulario de las 19 preguntas con las ponderaciones vigentes.
+    </div>
+
+    <div id="manualContent" style="display:none;">
+      <div class="grid">
+        <div>
+          <div class="panel">
+            <h2>Cargar cuestionario de un cliente (PDF)</h2>
+            <p class="hint">Sube el KYC en PDF que entrega el sistema. Se rellenan automáticamente las preguntas que el motor puede reconocer; el resto queda en blanco para completar a mano — nunca se fuerza una respuesta que no esté en el documento.</p>
+            <label class="dropzone" id="dropzonePdf" for="fileInputPdf" style="display:flex;">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2C5F8A" stroke-width="1.6"><path d="M12 3v12m0-12 4 4m-4-4-4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+              <span class="dz-text"><b>Cargar cuestionario KYC (.pdf)</b><br>Arrastra el archivo aquí o haz clic para seleccionarlo</span>
+            </label>
+            <input type="file" id="fileInputPdf" accept=".pdf" style="display:none;">
+            <div class="upload-status" id="pdfImportStatus" style="margin-top:10px;"><span class="label">Cuestionario cargado</span>Sin cargar</div>
+            <div id="pdfImportSummary" style="display:none; margin-top:10px; font-size:12.5px; color:var(--ink-soft);"></div>
+          </div>
+
+          <div class="panel">
+            <h2>Identificación (opcional, solo para el respaldo exportado)</h2>
+            <div class="field">
+              <div class="field-row"><label>Cliente / Folio</label></div>
+              <input type="text" id="manualClienteId" class="qinput" style="width:100%;" placeholder="Ej. Juan Pérez — Folio 00123">
+            </div>
+          </div>
+
+          <div class="panel">
+            <h2>Formulario de perfilamiento (P1 – P19)</h2>
+            <p class="hint">Escribe para buscar dentro de cada campo (ej. rubro, país). El puntaje de cada respuesta se actualiza al instante.</p>
+            <div class="qform" id="qform"></div>
+          </div>
+        </div>
+
+        <div class="manual-results">
+          <div class="panel">
+            <h2>Resultado del perfilamiento</h2>
+            <div class="gauge-wrap">
+              <div class="gauge">
+                <div class="gauge-track">
+                  <div class="seg b" style="width:33.4%"></div>
+                  <div class="seg m" style="width:33.3%"></div>
+                  <div class="seg a" style="width:33.3%"></div>
+                </div>
+                <div style="position:relative;">
+                  <div class="gauge-marker" id="gaugeMarkerManual" data-val="0" style="left:0%;"></div>
+                </div>
+                <div class="gauge-labels"><span>0</span><span>33,4</span><span>66,7</span><span>100</span></div>
+              </div>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:18px; flex-wrap:wrap;">
+              <div class="status-badge" style="text-align:left; flex:1; min-width:140px;">
+                <span class="label">Total bruto</span>
+                <span class="value" id="manualTotal" style="font-size:16px;">—</span>
+              </div>
+              <div class="status-badge" style="text-align:left; flex:1; min-width:140px;">
+                <span class="label">Score normalizado</span>
+                <span class="value" id="manualNorm" style="font-size:16px;">—</span>
+              </div>
+              <div class="status-badge" style="text-align:left; flex:1; min-width:140px;">
+                <span class="label">Clasificación</span>
+                <span class="pill" id="manualClasifPill" style="font-size:13px;">—</span>
+              </div>
+              <div class="status-badge" style="text-align:left; flex:1; min-width:140px;">
+                <span class="label">Debida diligencia</span>
+                <span class="value" id="manualDD" style="font-size:14px; color:var(--accent);">—</span>
+              </div>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:14px;">
+              <button class="btn-clear" id="btnExportJSON" style="flex:1;">Descargar JSON</button>
+              <button class="btn-clear" id="btnExportPrint" style="flex:1;">Imprimir / Guardar PDF</button>
+            </div>
+          </div>
+
+          <div class="panel" id="coherenciaPanel" style="display:none;">
+            <h2>Alertas de coherencia</h2>
+            <p class="hint">Combinaciones de respuestas que, sin ser un gatillante automático, suelen ameritar una segunda mirada.</p>
+            <ul class="trigger-list" id="coherenciaList"></ul>
+          </div>
+
+          <div class="panel">
+            <h2>Gatillantes de riesgo automático</h2>
+            <ul class="trigger-list" id="manualTriggers"></ul>
+          </div>
+
+          <div class="panel">
+            <h2>Driver primario / secundario</h2>
+            <table class="breakdown-table">
+              <tbody>
+                <tr><td style="font-weight:600;">Primario</td><td id="manualDriver1" class="num">—</td></tr>
+                <tr><td style="font-weight:600;">Secundario</td><td id="manualDriver2" class="num">—</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="panel">
+            <h2>Debida diligencia y monitoreo continuo</h2>
+            <p class="hint">Leído desde las hojas DDC_DDR y Monitoreo Continuo del archivo cargado (o datos de referencia si no están presentes).</p>
+            <table class="breakdown-table" style="margin-bottom:14px;">
+              <thead><tr><th>Clasificación</th><th>Debida diligencia</th></tr></thead>
+              <tbody id="ddcddrTable"></tbody>
+            </table>
+            <table class="breakdown-table">
+              <thead><tr><th>Situación en monitoreo</th><th>Acción</th></tr></thead>
+              <tbody id="monitoreoTable"></tbody>
+            </table>
+          </div>
+
+          <div class="panel">
+            <h2>Desglose por pregunta</h2>
+            <table class="breakdown-table">
+              <thead><tr><th>Pregunta</th><th>Respuesta</th><th class="num">Puntaje</th></tr></thead>
+              <tbody id="manualBreakdown"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /tab-manual -->
+
+  <div id="tab-analysis" class="tab-panel">
+    <div id="analysisLocked" class="manual-locked">
+      <b>Análisis manual deshabilitado</b>
+      Carga <b>Matriz_Riesgo_PLAFT.xlsx</b> arriba para habilitar el desglose de preguntas y respuestas.
+    </div>
+
+    <div id="analysisContent" style="display:none;">
+      <div class="grid">
+        <div>
+          <div class="panel">
+            <h2>Preguntas y respuestas (P1 – P19)</h2>
+            <p class="hint">Espacio de análisis puro — sin carga de PDF ni identificación de cliente. Haz clic en una pregunta para desglosar todas sus opciones con su ponderación y puntaje, y elige una para ver el efecto inmediato en el resultado.</p>
+            <div class="qaccordion" id="qaccordion"></div>
+          </div>
+        </div>
+
+        <div class="manual-results">
+          <div class="panel">
+            <h2>Resultado del análisis</h2>
+            <div class="gauge-wrap">
+              <div class="gauge">
+                <div class="gauge-track">
+                  <div class="seg b" style="width:33.4%"></div>
+                  <div class="seg m" style="width:33.3%"></div>
+                  <div class="seg a" style="width:33.3%"></div>
+                </div>
+                <div style="position:relative;">
+                  <div class="gauge-marker" id="gaugeMarkerAnalysis" data-val="0" style="left:0%;"></div>
+                </div>
+                <div class="gauge-labels"><span>0</span><span>33,4</span><span>66,7</span><span>100</span></div>
+              </div>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:18px; flex-wrap:wrap;">
+              <div class="status-badge" style="text-align:left; flex:1; min-width:140px;">
+                <span class="label">Total bruto</span>
+                <span class="value" id="analysisTotal" style="font-size:16px;">—</span>
+              </div>
+              <div class="status-badge" style="text-align:left; flex:1; min-width:140px;">
+                <span class="label">Score normalizado</span>
+                <span class="value" id="analysisNorm" style="font-size:16px;">—</span>
+              </div>
+              <div class="status-badge" style="text-align:left; flex:1; min-width:140px;">
+                <span class="label">Clasificación</span>
+                <span class="pill" id="analysisClasifPill" style="font-size:13px;">—</span>
+              </div>
+              <div class="status-badge" style="text-align:left; flex:1; min-width:140px;">
+                <span class="label">Debida diligencia</span>
+                <span class="value" id="analysisDD" style="font-size:14px; color:var(--accent);">—</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" id="analysisCoherenciaPanel" style="display:none;">
+            <h2>Alertas de coherencia</h2>
+            <ul class="trigger-list" id="analysisCoherenciaList"></ul>
+          </div>
+
+          <div class="panel">
+            <h2>Gatillantes de riesgo automático</h2>
+            <ul class="trigger-list" id="analysisTriggers"></ul>
+          </div>
+
+          <div class="panel">
+            <h2>Driver primario / secundario</h2>
+            <table class="breakdown-table">
+              <tbody>
+                <tr><td style="font-weight:600;">Primario</td><td id="analysisDriver1" class="num">—</td></tr>
+                <tr><td style="font-weight:600;">Secundario</td><td id="analysisDriver2" class="num">—</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="panel">
+            <h2>Desglose por pregunta</h2>
+            <table class="breakdown-table">
+              <thead><tr><th>Pregunta</th><th>Respuesta</th><th class="num">Puntaje</th></tr></thead>
+              <tbody id="analysisBreakdown"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /tab-analysis -->
+
+  <div id="tab-stress" class="tab-panel">
+    <div id="stressLocked" class="manual-locked">
+      <b>Test de stress deshabilitado</b>
+      Carga <b>Matriz_Riesgo_PLAFT.xlsx</b> arriba para habilitar el test de sensibilidad sobre cualquier variable del cuestionario.
+    </div>
+
+    <div id="stressContent" style="display:none;">
+
+      <div class="panel">
+        <h2>Ranking de sensibilidad global (todas las preguntas)</h2>
+        <p class="hint">Rango de puntaje entre la opción de menor y mayor riesgo de cada pregunta (P1–P19), manteniendo el resto en un valor intermedio. Muestra qué variables mueven más el score total, independiente de la variable que estés testeando abajo.</p>
+        <div class="chart-card" style="height:420px;"><canvas id="tornadoChart"></canvas></div>
+      </div>
+
+      <div class="grid">
+
+        <!-- ================= CONTROLES ================= -->
+        <div>
+          <div class="panel">
+            <h2>Variable a testear</h2>
+            <p class="hint">Elige la pregunta y la respuesta específica cuya ponderación quieres poner a prueba.</p>
+            <div class="field">
+              <div class="field-row"><label>Pregunta</label></div>
+              <select id="stressQidSelect" class="qinput" style="width:100%; padding:8px 10px; font-family:var(--sans); border:1px solid var(--line-strong); border-radius:4px;"></select>
+            </div>
+            <div class="field">
+              <div class="field-row"><label>Respuesta</label><span class="tag" id="stressCurrentPond">—</span></div>
+              <input type="text" id="stressRespInput" class="qinput" list="dl-stress-resp" style="width:100%;">
+              <datalist id="dl-stress-resp"></datalist>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h2>Ponderaciones candidatas</h2>
+            <p class="hint">Prellenadas a partir del valor vigente (×0,5 / actual / ×1,5). Edítalas libremente.</p>
+
+            <div class="field" data-field="Conservador">
+              <div class="field-row"><label>Conservador</label><span class="tag" id="stag-Conservador">BAJO</span></div>
+              <input type="range" min="0" max="3" step="0.01" value="0" id="srange-Conservador">
+              <div class="valrow">
+                <input type="number" min="0" max="10" step="0.01" value="0" id="snum-Conservador">
+                <span class="score-out">Puntaje = <span id="sscore-Conservador">0.00</span></span>
+              </div>
+            </div>
+            <div class="field" data-field="Promedio">
+              <div class="field-row"><label>Promedio (valor vigente)</label><span class="tag" id="stag-Promedio">BAJO</span></div>
+              <input type="range" min="0" max="3" step="0.01" value="0" id="srange-Promedio">
+              <div class="valrow">
+                <input type="number" min="0" max="10" step="0.01" value="0" id="snum-Promedio">
+                <span class="score-out">Puntaje = <span id="sscore-Promedio">0.00</span></span>
+              </div>
+            </div>
+            <div class="field" data-field="Arriesgado">
+              <div class="field-row"><label>Arriesgado</label><span class="tag" id="stag-Arriesgado">BAJO</span></div>
+              <input type="range" min="0" max="3" step="0.01" value="0" id="srange-Arriesgado">
+              <div class="valrow">
+                <input type="number" min="0" max="10" step="0.01" value="0" id="snum-Arriesgado">
+                <span class="score-out">Puntaje = <span id="sscore-Arriesgado">0.00</span></span>
+              </div>
+            </div>
+            <button class="btn-reset" id="sbtnReset">Restablecer a ×0,5 / actual / ×1,5</button>
+          </div>
+
+          <div class="panel">
+            <h2>Intensidad — resto de preguntas</h2>
+            <p class="hint">Aplica a las 18 preguntas restantes (Conservador = opción de menor puntaje, Extremo = mayor puntaje, Promedio = punto intermedio).</p>
+            <div class="segmented" id="segIntensidadStress">
+              <button data-val="Conservador" class="active">Conservador</button>
+              <button data-val="Promedio">Promedio</button>
+              <button data-val="Extremo">Extremo</button>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h2>Gatillantes de riesgo automático</h2>
+            <div class="switch-row">
+              <span class="txt" id="stressGatillantesTxt">Mantener neutralizados en el resto de preguntas (PEP=NO, Cargo Estado=NO, Nacionalidad/País tributario=Chile, FX terceros=NO)</span>
+              <label class="switch">
+                <input type="checkbox" id="stressToggleGatillantes" checked>
+                <span class="slider-toggle"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= RESULTADOS ================= -->
+        <div>
+          <div class="panel">
+            <h2>Test de stress — Score normalizado por escenario</h2>
+            <div class="chart-card"><canvas id="stressChartGeneric"></canvas></div>
+          </div>
+
+          <div class="panel">
+            <h2>Escenario destacado: <span id="stressGaugeTitle">—</span></h2>
+            <div class="gauge-wrap">
+              <div class="gauge">
+                <div class="gauge-track">
+                  <div class="seg b" style="width:33.4%"></div>
+                  <div class="seg m" style="width:33.3%"></div>
+                  <div class="seg a" style="width:33.3%"></div>
+                </div>
+                <div style="position:relative;">
+                  <div class="gauge-marker" id="stressGaugeMarker" data-val="0" style="left:0%;"></div>
+                </div>
+                <div class="gauge-labels"><span>0</span><span>33,4</span><span>66,7</span><span>100</span></div>
+              </div>
+            </div>
+            <div style="margin-top:14px; font-size:12.5px; color:var(--ink-soft);">Debida diligencia: <span id="stressDD" style="font-weight:700; color:var(--accent);">—</span></div>
+          </div>
+
+          <div class="panel">
+            <h2>Matriz de sensibilidad (3 × 3)</h2>
+            <table class="matrix">
+              <thead>
+                <tr><th>Ponderación candidata</th><th>Intensidad resto</th><th class="num">Total</th><th class="num">Score norm.</th><th>Clasificación</th><th>Debida diligencia</th></tr>
+              </thead>
+              <tbody id="stressMatrixBody"></tbody>
+            </table>
+          </div>
+
+          <div class="panel">
+            <h2>Desglose del escenario destacado</h2>
+            <table class="breakdown-table">
+              <thead><tr><th>Pregunta</th><th>Respuesta</th><th class="num">Puntaje</th></tr></thead>
+              <tbody id="stressBreakdown"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /tab-stress -->
+
+  <div id="tab-diff" class="tab-panel">
+    <div class="panel">
+      <h2>Comparar dos versiones de Matriz_Riesgo_PLAFT.xlsx</h2>
+      <p class="hint">Sube la versión anterior y la nueva para ver exactamente qué ponderaciones cambiaron antes de reemplazar el archivo vigente. Todo se procesa en tu navegador — no se suben ni comparan datos de clientes, solo la hoja de ponderaciones.</p>
+      <div style="display:flex; gap:16px; flex-wrap:wrap; margin-top:14px;">
+        <div style="flex:1; min-width:260px;">
+          <label class="dropzone" id="dropzoneA" for="fileInputA" style="display:flex;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2C5F8A" stroke-width="1.6"><path d="M12 3v12m0-12 4 4m-4-4-4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+            <span class="dz-text"><b>Versión A (anterior)</b><br>Arrastra o haz clic para seleccionar</span>
+          </label>
+          <input type="file" id="fileInputA" accept=".xlsx" style="display:none;">
+          <div class="upload-status" id="diffStatusA" style="margin-top:8px;"><span class="label">Versión A</span>Sin cargar</div>
+        </div>
+        <div style="flex:1; min-width:260px;">
+          <label class="dropzone" id="dropzoneB" for="fileInputB" style="display:flex;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2C5F8A" stroke-width="1.6"><path d="M12 3v12m0-12 4 4m-4-4-4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+            <span class="dz-text"><b>Versión B (nueva)</b><br>Arrastra o haz clic para seleccionar</span>
+          </label>
+          <input type="file" id="fileInputB" accept=".xlsx" style="display:none;">
+          <div class="upload-status" id="diffStatusB" style="margin-top:8px;"><span class="label">Versión B</span>Sin cargar</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="diffResults" style="display:none;">
+      <div class="panel">
+        <h2>Resumen de cambios</h2>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <div class="status-badge" style="text-align:left; flex:1; min-width:140px;">
+            <span class="label">Ponderaciones modificadas</span>
+            <span class="value" id="diffCountMod" style="font-size:16px;">—</span>
+          </div>
+          <div class="status-badge" style="text-align:left; flex:1; min-width:140px;">
+            <span class="label">Respuestas agregadas</span>
+            <span class="value" id="diffCountAdd" style="font-size:16px; color:var(--bajo);">—</span>
+          </div>
+          <div class="status-badge" style="text-align:left; flex:1; min-width:140px;">
+            <span class="label">Respuestas eliminadas</span>
+            <span class="value" id="diffCountDel" style="font-size:16px; color:var(--alto);">—</span>
+          </div>
+        </div>
+        <div id="diffParamChanges" style="margin-top:14px; font-size:12.5px; color:var(--ink-soft);"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Detalle de cambios por pregunta</h2>
+        <p class="hint">Solo se listan diferencias — las respuestas sin cambios no aparecen.</p>
+        <table class="matrix">
+          <thead>
+            <tr><th>Tipo</th><th>Pregunta</th><th>Respuesta</th><th class="num">Ponderación A</th><th class="num">Ponderación B</th><th class="num">Puntaje A</th><th class="num">Puntaje B</th><th class="num">Δ Puntaje</th></tr>
+          </thead>
+          <tbody id="diffTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div><!-- /tab-diff -->
+
+  <footer>
+    Motor de Perfilamiento PLAFT V5.1 — alimentado en vivo desde Matriz_Riesgo_PLAFT.xlsx (hoja "Ponderación de Preguntas") · Cálculo 100% client-side, sin envío de datos a servidores externos · Archivo autocontenido, se puede compartir directamente por correo o intranet.
+  </footer>
+</div>
+
+<script>
+if (typeof pdfjsLib !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+// ============================================================================
+// "RECETA" METODOLÓGICA (fija) — qué respuestas representan cada escenario.
+// Esto NO son parámetros de riesgo, son decisiones de diseño del test de stress
+// (documentadas en SUPUESTOS_STRESS_TEST y TEST_STRESS_CESANTE del Motor V5.1).
+// Lo único que se lee dinámicamente del archivo cargado es el PUNTAJE de cada
+// una de estas respuestas — si cambia una ponderación en la Matriz, el puntaje
+// asociado a estas respuestas cambia solo.
+//
+// GATILLANTES: según la hoja "Riesgo Automatico" de la Matriz, el Alto
+// Automático lo disparan exactamente 5 variables — PEP (P8), Cargo Estado
+// (P15), Nacionalidad lista roja (P16), País tributario lista roja (P17) y
+// FX a cuentas de terceros (P19). "Funcionario del sector público" (P7) NO
+// está en esa lista — es una pregunta que puntúa normal, sin gatillar nada.
+// ============================================================================
+const GATILLANTE_QIDS = ['P8', 'P15', 'P16', 'P17', 'P19'];
+const KNOWN_ALTO_LABELS = ['PEP', 'CARGO ESTADO ULTIMOS 4 ANOS', 'NACIONALIDAD LISTA ROJA GAFI', 'PAIS TRIBUTARIO LISTA ROJA GAFI', 'OPERACIONES MONEDA EXTRANJERA A TERCEROS'];
+const KNOWN_MEDIO_LABELS = ['JURISDICCIONES LISTA GRIS/NO COOPERANTES'];
+
+const RECETA = {
+  identidadCesante: {           // P6, P10, P11, P18 — PERFILES_BASE
+    P6: 'SERVICIOS PROFESIONALES DE INGENIERÍA Y ACTIVIDADES CONEXAS DE CONSULTORÍA TÉCNICA',
+    P10: '10.000.000-50.000.000',
+    P11: 'RENTA BIENES INMUEBLES',
+    P18: 'AHORRO'
+  },
+  gatillantesNeutral: { P8:'NO', P15:'NO', P16:'CHILE', P17:'CHILE', P19:'NO' },
+  gatillantesAlto: { P8:'SI', P15:'SI', P16:'IRAN', P17:'COREA DEL NORTE', P19:'SI, A CUENTAS DE TERCEROS' },
+  intensidad: {
+    Conservador: { P1:'PRESENCIAL', P2:'PRENSA', P3:'DOCTORADO', P4:'71 AÑOS O MAS', P7:'NO', P9:'DOS AÑOS O MÁS', P12:'0.1', P13:'0-10.000.000', P14:'NINGUNO' },
+    Promedio:    { P1:'MÓVIL -FIJO', P2:'OTRO CLIENTE', P3:'SUPERIOR', P4:'ENTRE 18 Y 70 AÑOS', P7:'NO', P9:'ENTRE UNO Y DOS AÑOS', P12:'0.3', P13:'100.000.000-500.000.000', P14:'INGRESOS POR NEGOCIOS' },
+    Extremo:     { P1:'ONLINE', P2:'BUSCADORES Y REDES SOCIALES', P3:'ESTUDIANTE', P4:'ENTRE 0 Y 17 AÑOS', P7:'SI', P9:'MENOR A UN AÑO', P12:'Superior al 50%', P13:'Superiores a 5.000.000.000', P14:'DONACION' }
+  },
+  candidatosDefault: { Conservador: 0.10, Promedio: 0.20, Arriesgado: 0.30 }
+};
+
+const DEFAULT_DATA = {
+  minTotal: 10.45, maxTotal: 95.45, umbral1: 33.4, umbral2: 66.7,
+  valorP5: 5,
+  fixedIdentidad: 9.75,          // P6+P10+P11+P18 (identidad Cesante)
+  gatillantesNeutralSum: 1.2,    // P8(0)+P15(0)+P16 Chile(0.8)+P17 Chile(0.4)+P19(0)
+  gatillantesAltoSum: 37.0,      // P8 SI(10)+P15 SI(8)+P16 Iran(8)+P17 CoreaNorte(4)+P19 terceros(7)
+  intensidad: { Conservador: 2.85, Promedio: 8.35, Extremo: 22.30 },   // incluye P7 (0/0/7)
+  candidatos: { ...RECETA.candidatosDefault },
+  catalogo: null,       // se llena solo al cargar Matriz_Riesgo_PLAFT.xlsx — habilita "Perfilamiento Manual"
+  textoPregunta: null,
+  pesoPregunta: null,
+  ddcddr: { BAJO: 'DDC', MEDIO: 'DDC + Monitoreo', ALTO: 'DDR' },
+  monitoreo: [
+    ['Alerta transaccional', 'Revisión'],
+    ['Alertas transaccionales', 'Monitoreo por perfil de riesgo'],
+    ['Operación inusual', 'Investigación'],
+    ['DOF', 'Solicitud información'],
+    ['Hallazgo relevante', 'DDR'],
+    ['Sospecha fundada', 'ROS']
+  ],
+  riesgoAutoValidation: { ok: true, extraAlto: [], missingAlto: [], extraMedio: [], missingMedio: [], rawAlto: KNOWN_ALTO_LABELS, rawMedio: KNOWN_MEDIO_LABELS }
+};
+
+let DATA = JSON.parse(JSON.stringify(DEFAULT_DATA));
+
+function calc(pond, intensidadKey, gatillantesNeutral){
+  const scoreP5 = pond * DATA.valorP5;
+  const fixedGatillantes = gatillantesNeutral ? DATA.gatillantesNeutralSum : DATA.gatillantesAltoSum;
+  const total = DATA.fixedIdentidad + fixedGatillantes + DATA.intensidad[intensidadKey] + scoreP5;
+  const norm = (total - DATA.minTotal) / (DATA.maxTotal - DATA.minTotal) * 100;
+  // En el escenario "neutralizado" ninguno de los 5 gatillantes de Riesgo Automático está
+  // activo; en el "peor caso" los 5 lo están simultáneamente (ver RECETA.gatillantesAlto).
+  const anyAlto = !gatillantesNeutral;
+  let clasif;
+  if (anyAlto || norm > DATA.umbral2) clasif = 'ALTO';
+  else if (norm >= DATA.umbral1) clasif = 'MEDIO';
+  else clasif = 'BAJO';
+  return { scoreP5, total, norm, clasif };
+}
+
+function ddLabel(clasif){
+  return (DATA.ddcddr && DATA.ddcddr[clasif]) ? DATA.ddcddr[clasif] : '';
+}
+
+// ============================================================================
+// LECTURA DE ARCHIVO (SheetJS) — Matriz_Riesgo_PLAFT.xlsx
+// Hoja "Ponderación de Preguntas": formato crudo, no tabular — la columna A
+// (Nº de pregunta) solo está poblada en la fila de encabezado de cada pregunta;
+// las filas de respuesta la traen vacía. Hay que recorrer fila a fila
+// arrastrando el último Nº de pregunta visto.
+// ============================================================================
+function parsePonderacionSheet(ws){
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, range: 0 });
+  const puntIdx = {};       // 'P5||CESANTE' -> puntaje
+  const pesoPregunta = {};  // 'P5' -> Valor_Pregunta
+  const textoPregunta = {}; // 'P5' -> '¿Cuál es su ocupación?'
+  const catalogo = {};      // 'P5' -> [{respuesta, ponderacion, puntaje}, ...]
+  let currentQid = null;
+  let minTotal = null, maxTotal = null;
+
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row) continue;
+    const [colA, colB, colC, colD, colE] = row;
+
+    if (colA !== null && colA !== undefined && colA !== '') {
+      // fila de encabezado de pregunta
+      currentQid = 'P' + colA;
+      if (colB) textoPregunta[currentQid] = colB.toString().trim();
+      if (colC !== null && colC !== undefined) pesoPregunta[currentQid] = Number(colC);
+      catalogo[currentQid] = [];
+      continue;
+    }
+    if (colB === null || colB === undefined || colB === '') continue;
+    const texto = colB.toString().trim();
+    if (texto.toUpperCase() === 'TOTAL') {
+      minTotal = Number(colE);
+      // la fila siguiente trae el máximo posible (misma columna E)
+      const next = rows[i + 1];
+      if (next) maxTotal = Number(next[4]);
+      continue;
+    }
+    if (currentQid && colD !== null && colD !== undefined && colE !== null && colE !== undefined && !isNaN(Number(colE))) {
+      const key = currentQid + '||' + texto.toUpperCase();
+      puntIdx[key] = Number(colE);
+      if (!(currentQid in pesoPregunta) && colC !== null) pesoPregunta[currentQid] = Number(colC);
+      if (!catalogo[currentQid]) catalogo[currentQid] = [];
+      catalogo[currentQid].push({ respuesta: texto, ponderacion: Number(colD), puntaje: Number(colE) });
+    }
+  }
+  return { puntIdx, pesoPregunta, textoPregunta, catalogo, minTotal, maxTotal };
+}
+
+function parseClasificacionSheet(ws){
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, range: 0 });
+  let umbral1 = null, umbral2 = null;
+  rows.forEach(row => {
+    if (!row) return;
+    const cat = (row[0] || '').toString().trim().toUpperCase();
+    const val = (row[1] || '').toString();
+    if (cat === 'BAJO') {
+      const m = val.match(/([\d.,]+)/);
+      if (m) umbral1 = parseFloat(m[1].replace(',', '.'));
+    }
+    if (cat === 'ALTO') {
+      const m = val.match(/([\d.,]+)/);
+      if (m) umbral2 = parseFloat(m[1].replace(',', '.'));
+    }
+  });
+  return { umbral1, umbral2 };
+}
+
+function parseDDCDDRSheet(ws){
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, range: 0 });
+  const map = {};
+  rows.forEach(row => {
+    if (!row || !row[0] || !row[1]) return;
+    const cat = row[0].toString().trim().toUpperCase();
+    if (['BAJO', 'MEDIO', 'ALTO'].includes(cat)) map[cat] = row[1].toString().trim();
+  });
+  return (map.BAJO && map.MEDIO && map.ALTO) ? map : null;
+}
+
+function parseMonitoreoSheet(ws){
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, range: 0 });
+  const out = rows.filter(r => r && r[0] && r[1]).map(r => [r[0].toString().trim(), r[1].toString().trim()]);
+  return out.length ? out : null;
+}
+
+function normalizeLabel(s){
+  return s.toString().trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function parseRiesgoAutomaticoSheet(ws){
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, range: 0 });
+  const alto = [], medio = [];
+  let section = null;
+  rows.forEach(row => {
+    if (!row || !row[0]) return;
+    const text = row[0].toString().trim();
+    const up = normalizeLabel(text);
+    if (up.includes('ALTO AUTOM')) { section = 'alto'; return; }
+    if (up.includes('MEDIO AUTOM')) { section = 'medio'; return; }
+    if (section === 'alto') alto.push(text);
+    if (section === 'medio') medio.push(text);
+  });
+  if (!alto.length && !medio.length) return null;
+
+  const normAlto = alto.map(normalizeLabel);
+  const normMedio = medio.map(normalizeLabel);
+  const knownAlto = KNOWN_ALTO_LABELS.map(normalizeLabel);
+  const knownMedio = KNOWN_MEDIO_LABELS.map(normalizeLabel);
+  const extraAlto = alto.filter((_, i) => !knownAlto.includes(normAlto[i]));
+  const missingAlto = KNOWN_ALTO_LABELS.filter((_, i) => !normAlto.includes(knownAlto[i]));
+  const extraMedio = medio.filter((_, i) => !knownMedio.includes(normMedio[i]));
+  const missingMedio = KNOWN_MEDIO_LABELS.filter((_, i) => !normMedio.includes(knownMedio[i]));
+
+  return {
+    ok: extraAlto.length === 0 && missingAlto.length === 0 && extraMedio.length === 0 && missingMedio.length === 0,
+    extraAlto, missingAlto, extraMedio, missingMedio, rawAlto: alto, rawMedio: medio
+  };
+}
+
+function loadFromWorkbook(wb){
+  const SHEET_PONDERACION = 'Ponderación de Preguntas';
+  const SHEET_CLASIFICACION = 'Clasificacion';
+  const missing = [SHEET_PONDERACION, SHEET_CLASIFICACION].filter(n => !wb.Sheets[n]);
+  if (missing.length){
+    throw new Error('Faltan hojas en el archivo: ' + missing.join(', ') + ' (¿subiste Matriz_Riesgo_PLAFT.xlsx?)');
+  }
+
+  const { puntIdx, pesoPregunta, textoPregunta, catalogo, minTotal, maxTotal } = parsePonderacionSheet(wb.Sheets[SHEET_PONDERACION]);
+  const { umbral1, umbral2 } = parseClasificacionSheet(wb.Sheets[SHEET_CLASIFICACION]);
+  if (minTotal === null || maxTotal === null) throw new Error('No se encontró la fila "Total" (mínimo/máximo posible) en "' + SHEET_PONDERACION + '"');
+  if (umbral1 === null || umbral2 === null) throw new Error('No se pudieron leer los umbrales de la hoja "' + SHEET_CLASIFICACION + '"');
+  if (!pesoPregunta['P5']) throw new Error('No se encontró el peso de P5 en "' + SHEET_PONDERACION + '"');
+  for (let i = 1; i <= 19; i++) {
+    if (!catalogo['P' + i] || !catalogo['P' + i].length) throw new Error('No se encontraron opciones de respuesta para P' + i + ' en "' + SHEET_PONDERACION + '"');
+  }
+
+  // --- Hojas opcionales: si no existen o no se pueden leer, se usa el valor de referencia ---
+  let ddcddr = DEFAULT_DATA.ddcddr;
+  if (wb.Sheets['DDC_DDR']) {
+    const parsed = parseDDCDDRSheet(wb.Sheets['DDC_DDR']);
+    if (parsed) ddcddr = parsed;
+  }
+  let monitoreo = DEFAULT_DATA.monitoreo;
+  if (wb.Sheets['Monitoreo Continuo']) {
+    const parsed = parseMonitoreoSheet(wb.Sheets['Monitoreo Continuo']);
+    if (parsed) monitoreo = parsed;
+  }
+  let riesgoAutoValidation = DEFAULT_DATA.riesgoAutoValidation;
+  if (wb.Sheets['Riesgo Automatico']) {
+    const parsed = parseRiesgoAutomaticoSheet(wb.Sheets['Riesgo Automatico']);
+    if (parsed) riesgoAutoValidation = parsed;
+  }
+
+  const lookup = (qid, resp) => {
+    const key = qid + '||' + (resp || '').toString().trim().toUpperCase();
+    const v = puntIdx[key];
+    if (v === undefined) throw new Error('No se encontró la respuesta "' + resp + '" para ' + qid + ' en "' + SHEET_PONDERACION + '"');
+    return v;
+  };
+
+  const fixedIdentidad = Object.entries(RECETA.identidadCesante)
+    .reduce((s, [qid, resp]) => s + lookup(qid, resp), 0);
+
+  const gatillantesNeutralSum = Object.entries(RECETA.gatillantesNeutral)
+    .reduce((s, [qid, resp]) => s + lookup(qid, resp), 0);
+
+  const gatillantesAltoSum = Object.entries(RECETA.gatillantesAlto)
+    .reduce((s, [qid, resp]) => s + lookup(qid, resp), 0);
+
+  const intensidad = {};
+  Object.entries(RECETA.intensidad).forEach(([nivel, respuestas]) => {
+    intensidad[nivel] = Object.entries(respuestas).reduce((s, [qid, resp]) => s + lookup(qid, resp), 0);
+  });
+
+  return {
+    minTotal, maxTotal, umbral1, umbral2, valorP5: pesoPregunta['P5'],
+    fixedIdentidad, gatillantesNeutralSum, gatillantesAltoSum, intensidad,
+    candidatos: { ...RECETA.candidatosDefault },  // no vienen de la Matriz: son el input libre del usuario
+    catalogo, textoPregunta, pesoPregunta,         // para la pestaña de Perfilamiento Manual
+    ddcddr, monitoreo, riesgoAutoValidation         // para el punto 1 (DDC/DDR) y punto 2 (validación de gatillantes)
+  };
+}
+
+// ============================================================================
+// ESTADO
+// ============================================================================
+const ESCENARIOS = ['Conservador','Promedio','Arriesgado'];
+let ponderaciones = { ...DATA.candidatos };
+let intensidadSeleccionada = 'Conservador';
+let gatillantesNeutral = true;
+let escenarioDestacado = 'Arriesgado';
+
+// ============================================================================
+// CHART.JS
+// ============================================================================
+const ctx = document.getElementById('stressChart').getContext('2d');
+const COLORS = { Conservador:'#2C5F8A', Promedio:'#B9791A', Extremo:'#B23B3B' };
+
+const chart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: ESCENARIOS,
+    datasets: [
+      ...['Conservador','Promedio','Extremo'].map(intens => ({
+        label: 'Intensidad ' + intens,
+        data: [0,0,0],
+        borderColor: COLORS[intens],
+        backgroundColor: COLORS[intens],
+        borderWidth: 2.5,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        tension: 0.25
+      })),
+      {
+        label: 'Umbral Medio (33,4)',
+        data: [DATA.umbral1, DATA.umbral1, DATA.umbral1],
+        borderColor: '#B9791A',
+        borderDash: [6,4],
+        borderWidth: 1.3,
+        pointRadius: 0,
+        fill: false
+      },
+      {
+        label: 'Umbral Alto (66,7)',
+        data: [DATA.umbral2, DATA.umbral2, DATA.umbral2],
+        borderColor: '#B23B3B',
+        borderDash: [6,4],
+        borderWidth: 1.3,
+        pointRadius: 0,
+        fill: false
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode:'index', intersect:false },
+    plugins: {
+      legend: { position:'bottom', labels:{ font:{family:"'IBM Plex Sans'", size:11}, boxWidth:12, usePointStyle:true } },
+      tooltip: {
+        callbacks: {
+          label: (c) => c.dataset.label + ': ' + c.parsed.y.toFixed(2) + '%'
+        }
+      }
+    },
+    scales: {
+      y: {
+        min:0, max:100,
+        title:{ display:true, text:'Score normalizado (0–100)', font:{family:"'IBM Plex Sans'", size:11} },
+        grid:{ color:'#E4E8EE' },
+        ticks:{ font:{family:"'IBM Plex Mono'", size:10.5} }
+      },
+      x: {
+        title:{ display:true, text:'Ponderación candidata CESANTE', font:{family:"'IBM Plex Sans'", size:11} },
+        grid:{ display:false },
+        ticks:{ font:{family:"'IBM Plex Sans'", size:11.5, weight:600} }
+      }
+    }
+  }
+});
+
+// ============================================================================
+// RENDER
+// ============================================================================
+function render(){
+  // -- inputs sincronizados --
+  ESCENARIOS.forEach(esc => {
+    document.getElementById('range-'+esc).value = ponderaciones[esc];
+    document.getElementById('num-'+esc).value = ponderaciones[esc].toFixed(2);
+  });
+
+  // -- chart: 3 líneas (una por intensidad), 3 puntos (uno por escenario CESANTE) --
+  ['Conservador','Promedio','Extremo'].forEach((intens, di) => {
+    const vals = ESCENARIOS.map(esc => calc(ponderaciones[esc], intens, gatillantesNeutral).norm);
+    chart.data.datasets[di].data = vals;
+  });
+  chart.data.datasets[3].data = [DATA.umbral1, DATA.umbral1, DATA.umbral1];
+  chart.data.datasets[4].data = [DATA.umbral2, DATA.umbral2, DATA.umbral2];
+  chart.data.datasets[3].label = 'Umbral Medio (' + DATA.umbral1.toFixed(1).replace('.',',') + ')';
+  chart.data.datasets[4].label = 'Umbral Alto (' + DATA.umbral2.toFixed(1).replace('.',',') + ')';
+  chart.update('none');
+
+  // -- tags por escenario (chip de clasificación bajo cada input) --
+  ESCENARIOS.forEach(esc => {
+    const r = calc(ponderaciones[esc], intensidadSeleccionada, gatillantesNeutral);
+    const tag = document.getElementById('tag-'+esc);
+    tag.textContent = r.clasif;
+    tag.className = 'tag';
+    tag.style.background = r.clasif==='BAJO' ? 'var(--bajo-bg)' : r.clasif==='MEDIO' ? 'var(--medio-bg)' : 'var(--alto-bg)';
+    tag.style.color = r.clasif==='BAJO' ? 'var(--bajo)' : r.clasif==='MEDIO' ? 'var(--medio)' : 'var(--alto)';
+    document.getElementById('score-'+esc).textContent = r.scoreP5.toFixed(2);
+  });
+
+  // -- matriz 3x3 --
+  const tbody = document.getElementById('matrixBody');
+  tbody.innerHTML = '';
+  ESCENARIOS.forEach(esc => {
+    ['Conservador','Promedio','Extremo'].forEach(intens => {
+      const r = calc(ponderaciones[esc], intens, gatillantesNeutral);
+      const tr = document.createElement('tr');
+      const isHighlighted = (esc === escenarioDestacado && intens === intensidadSeleccionada);
+      if (isHighlighted) tr.className = 'row-highlight';
+      tr.innerHTML = `
+        <td>${esc} (${ponderaciones[esc].toFixed(2)})</td>
+        <td>${intens}</td>
+        <td class="num">${r.total.toFixed(2)}</td>
+        <td class="num">${r.norm.toFixed(2)}%</td>
+        <td><span class="pill ${r.clasif}">${r.clasif}</span></td>
+        <td>${ddLabel(r.clasif)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  });
+
+  // -- badge + gauge (escenario destacado x intensidad seleccionada) --
+  const destacado = calc(ponderaciones[escenarioDestacado], intensidadSeleccionada, gatillantesNeutral);
+  document.getElementById('badgeEscenario').textContent = escenarioDestacado;
+  document.getElementById('badgeScore').textContent = destacado.norm.toFixed(2) + '%';
+  const pill = document.getElementById('badgePill');
+  pill.textContent = destacado.clasif;
+  pill.className = 'pill ' + destacado.clasif;
+  document.getElementById('badgeDD').textContent = ddLabel(destacado.clasif);
+
+  document.getElementById('gaugeTitle').textContent = escenarioDestacado + ' · Intensidad ' + intensidadSeleccionada;
+  const marker = document.getElementById('gaugeMarker');
+  const pct = Math.min(100, Math.max(0, destacado.norm));
+  marker.style.left = pct + '%';
+  marker.setAttribute('data-val', destacado.norm.toFixed(1));
+}
+
+// ============================================================================
+// EVENTOS
+// ============================================================================
+ESCENARIOS.forEach(esc => {
+  const rangeEl = document.getElementById('range-'+esc);
+  const numEl = document.getElementById('num-'+esc);
+  rangeEl.addEventListener('input', () => { ponderaciones[esc] = parseFloat(rangeEl.value); numEl.value = rangeEl.value; render(); });
+  numEl.addEventListener('input', () => {
+    let v = parseFloat(numEl.value);
+    if (isNaN(v)) return;
+    v = Math.min(1, Math.max(0, v));
+    ponderaciones[esc] = v; rangeEl.value = v; render();
+  });
+  document.querySelector(`.field[data-field="${esc}"]`).addEventListener('click', (e) => {
+    if (e.target.tagName !== 'INPUT') { escenarioDestacado = esc; render(); }
+  });
+});
+
+document.getElementById('segIntensidad').addEventListener('click', (e) => {
+  if (e.target.tagName !== 'BUTTON') return;
+  document.querySelectorAll('#segIntensidad button').forEach(b => b.classList.remove('active'));
+  e.target.classList.add('active');
+  intensidadSeleccionada = e.target.dataset.val;
+  render();
+});
+
+document.getElementById('toggleGatillantes').addEventListener('change', (e) => {
+  gatillantesNeutral = e.target.checked;
+  render();
+});
+
+document.getElementById('btnReset').addEventListener('click', () => {
+  ponderaciones = { ...DATA.candidatos };
+  render();
+});
+
+// ============================================================================
+// TABS
+// ============================================================================
+document.querySelectorAll('.tabbar button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tabbar button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ============================================================================
+// PERFILAMIENTO MANUAL
+// ============================================================================
+const QUESTION_LABELS = {
+  P1:'Método de contacto', P2:'Cómo conoció la corredora', P3:'Nivel educacional', P4:'Rango de edad',
+  P5:'Ocupación', P6:'Rubro o actividad', P7:'Funcionario sector público', P8:'PEP',
+  P9:'Horizonte de inversión', P10:'Ingresos anuales', P11:'Fuentes de ingresos',
+  P12:'% ingresos destinados a inversión', P13:'Inversiones actuales sist. financiero',
+  P14:'Otras fuentes de patrimonio', P15:'Cargo en el Estado últimos 4 años', P16:'Nacionalidad',
+  P17:'País tributario', P18:'Origen del patrimonio', P19:'Operaciones en moneda extranjera'
+};
+const ALL_QIDS = Array.from({length:19}, (_, i) => 'P' + (i + 1));
+let manualAnswers = {};
+
+function manualLookup(qid, respuesta){
+  const opts = DATA.catalogo[qid] || [];
+  const target = normalizeText(respuesta);
+  const found = opts.find(o => normalizeText(o.respuesta) === target);
+  return found || null;
+}
+
+function initManualForm(){
+  const locked = document.getElementById('manualLocked');
+  const content = document.getElementById('manualContent');
+  if (!DATA.catalogo) {
+    locked.style.display = 'block';
+    content.style.display = 'none';
+    return;
+  }
+  locked.style.display = 'none';
+  content.style.display = 'block';
+
+  const qform = document.getElementById('qform');
+  qform.innerHTML = '';
+  manualAnswers = {};
+  ALL_QIDS.forEach(qid => {
+    const opts = DATA.catalogo[qid];
+    manualAnswers[qid] = opts[0].respuesta;   // valor inicial: primera opción del catálogo
+
+    const row = document.createElement('div');
+    row.className = 'qrow';
+
+    const label = document.createElement('div');
+    label.className = 'qlabel';
+    label.innerHTML = '<span class="qid">' + qid + '</span>' + (QUESTION_LABELS[qid] || DATA.textoPregunta[qid] || qid);
+
+    const input = document.createElement('input');
+    input.className = 'qinput';
+    input.type = 'text';
+    input.setAttribute('list', 'dl-' + qid);
+    input.value = opts[0].respuesta;
+    input.dataset.qid = qid;
+
+    const datalist = document.createElement('datalist');
+    datalist.id = 'dl-' + qid;
+    opts.forEach(o => {
+      const opt = document.createElement('option');
+      opt.value = o.respuesta;
+      datalist.appendChild(opt);
+    });
+
+    const score = document.createElement('div');
+    score.className = 'qscore';
+    score.id = 'qscore-' + qid;
+    score.textContent = opts[0].puntaje.toFixed(2);
+
+    input.addEventListener('input', () => {
+      manualAnswers[qid] = input.value;
+      renderManual();
+    });
+
+    row.appendChild(label);
+    row.appendChild(input);
+    row.appendChild(datalist);
+    row.appendChild(score);
+    qform.appendChild(row);
+  });
+
+  renderManual();
+}
+
+function isTopBracket(qid, respuesta){
+  const opts = DATA.catalogo[qid];
+  const match = manualLookup(qid, respuesta);
+  if (!match || !opts || !opts.length) return false;
+  const maxP = Math.max(...opts.map(o => o.puntaje));
+  return match.puntaje === maxP;
+}
+function isBottomBracket(qid, respuesta){
+  const opts = DATA.catalogo[qid];
+  const match = manualLookup(qid, respuesta);
+  if (!match || !opts || !opts.length) return false;
+  const minP = Math.min(...opts.map(o => o.puntaje));
+  return match.puntaje === minP;
+}
+
+// Alertas de coherencia: no son gatillantes automáticos (no cambian la Clasificación),
+// solo llaman la atención sobre combinaciones de respuestas típicamente inconsistentes.
+function checkCoherencia(answers){
+  const alerts = [];
+  const ocup = (answers.P5 || '').trim().toUpperCase();
+  const SIN_INGRESO_LABORAL = ['ESTUDIANTE', 'DUEÑA DE CASA', 'CESANTE', 'PENSIONADO'];
+
+  if (SIN_INGRESO_LABORAL.includes(ocup) && isTopBracket('P10', answers.P10)) {
+    alerts.push('Ocupación "' + answers.P5 + '" sin ingreso laboral corriente, pero Ingresos anuales en el tramo más alto del catálogo (' + answers.P10 + ').');
+  }
+
+  const edadTxt = (answers.P4 || '').toUpperCase();
+  const esMenorEdad = edadTxt.includes('0 Y 17');
+  if (esMenorEdad && ['EMPRESARIO', 'RENTISTA', 'PROFESIONAL INDEPENDIENTE'].includes(ocup)) {
+    alerts.push('Rango de edad de menor de edad (' + answers.P4 + ') con una ocupación propia de un adulto (' + answers.P5 + ').');
+  }
+  if (esMenorEdad && isTopBracket('P10', answers.P10)) {
+    alerts.push('Rango de edad de menor de edad con Ingresos anuales en el tramo más alto del catálogo (' + answers.P10 + ').');
+  }
+
+  if (isTopBracket('P13', answers.P13) && isBottomBracket('P10', answers.P10)) {
+    alerts.push('Inversiones actuales en el sistema financiero (' + answers.P13 + ') muy por encima del nivel de Ingresos anuales declarado (' + answers.P10 + ').');
+  }
+
+  if (isTopBracket('P12', answers.P12) && isTopBracket('P9', answers.P9)) {
+    alerts.push('Alto % de ingresos destinado a inversión (' + answers.P12 + ') combinado con un horizonte de inversión muy corto (' + answers.P9 + '): posible necesidad de liquidez atípica para un perfil inversor.');
+  }
+
+  return alerts;
+}
+
+function computeManualResult(answers){
+  answers = answers || manualAnswers;
+  const scores = {};
+  let allValid = true;
+  ALL_QIDS.forEach(qid => {
+    const match = manualLookup(qid, answers[qid]);
+    scores[qid] = match ? match.puntaje : 0;
+    if (!match) allValid = false;
+  });
+
+  const total = ALL_QIDS.reduce((s, q) => s + scores[q], 0);
+  const norm = (total - DATA.minTotal) / (DATA.maxTotal - DATA.minTotal) * 100;
+
+  const p16 = manualLookup('P16', answers.P16);
+  const p17 = manualLookup('P17', answers.P17);
+  const p19resp = (answers.P19 || '').trim().toUpperCase();
+
+  const isPEP = answers.P8 && answers.P8.trim().toUpperCase() === 'SI';
+  const isCargoEstado = answers.P15 && answers.P15.trim().toUpperCase() === 'SI';
+  const nacRoja = p16 && p16.ponderacion === 1;
+  const ptRoja = p17 && p17.ponderacion === 1;
+  const nacGris = p16 && (p16.ponderacion === 0.5 || p16.ponderacion === 0.6);
+  const ptGris = p17 && (p17.ponderacion === 0.5 || p17.ponderacion === 0.6);
+  const fxTerceros = p19resp.includes('TERCEROS');
+
+  const anyAlto = isPEP || isCargoEstado || nacRoja || ptRoja || fxTerceros;
+  const anyMedio = nacGris || ptGris;
+
+  let clasif;
+  if (anyAlto || norm > DATA.umbral2) clasif = 'ALTO';
+  else if (anyMedio || norm >= DATA.umbral1) clasif = 'MEDIO';
+  else clasif = 'BAJO';
+
+  const triggers = [
+    { label: 'PEP (P8 = SI)', on: isPEP },
+    { label: 'Cargo en el Estado últimos 4 años (P15 = SI)', on: isCargoEstado },
+    { label: 'Nacionalidad — Lista Roja GAFI', on: nacRoja },
+    { label: 'País tributario — Lista Roja GAFI', on: ptRoja },
+    { label: 'Nacionalidad — Lista Gris / No Cooperante', on: nacGris && !nacRoja },
+    { label: 'País tributario — Lista Gris / No Cooperante', on: ptGris && !ptRoja },
+    { label: 'Operaciones en moneda extranjera a cuentas de terceros', on: fxTerceros }
+  ];
+
+  const ranked = ALL_QIDS.map(q => [q, scores[q]]).sort((a, b) => b[1] - a[1]);
+  const coherencia = allValid ? checkCoherencia(answers) : [];
+
+  return {
+    scores, total, norm, clasif, allValid, triggers, ranked, coherencia,
+    dd: allValid ? ddLabel(clasif) : '—'
+  };
+}
+
+function renderManual(){
+  if (!DATA.catalogo) return;
+
+  const res = computeManualResult();
+  const { scores, total, norm, clasif, allValid, triggers, ranked, coherencia } = res;
+
+  ALL_QIDS.forEach(qid => {
+    const input = document.querySelector('.qinput[data-qid="' + qid + '"]');
+    const scoreEl = document.getElementById('qscore-' + qid);
+    const match = manualLookup(qid, manualAnswers[qid]);
+    if (match) {
+      if (input) input.classList.remove('invalid');
+      if (scoreEl) { scoreEl.textContent = match.puntaje.toFixed(2); scoreEl.classList.remove('invalid'); }
+    } else {
+      if (input) input.classList.add('invalid');
+      if (scoreEl) { scoreEl.textContent = '— inválido'; scoreEl.classList.add('invalid'); }
+    }
+  });
+
+  // --- badges ---
+  document.getElementById('manualTotal').textContent = total.toFixed(2);
+  document.getElementById('manualNorm').textContent = norm.toFixed(2) + '%';
+  const pill = document.getElementById('manualClasifPill');
+  pill.textContent = allValid ? clasif : '—';
+  pill.className = 'pill ' + (allValid ? clasif : '');
+  document.getElementById('manualDD').textContent = res.dd;
+
+  const marker = document.getElementById('gaugeMarkerManual');
+  const pct = Math.min(100, Math.max(0, norm));
+  marker.style.left = pct + '%';
+  marker.setAttribute('data-val', norm.toFixed(1));
+
+  // --- tablas de referencia DDC/DDR y Monitoreo Continuo (dinámicas desde el archivo) ---
+  const ddcddrBody = document.getElementById('ddcddrTable');
+  ddcddrBody.innerHTML = ['Bajo', 'Medio', 'Alto'].map(cat => {
+    const catUp = cat.toUpperCase();
+    const highlight = allValid && catUp === clasif ? ' class="row-highlight"' : '';
+    return '<tr' + highlight + '><td>' + cat + '</td><td>' + (DATA.ddcddr[catUp] || '—') + '</td></tr>';
+  }).join('');
+  const monitoreoBody = document.getElementById('monitoreoTable');
+  monitoreoBody.innerHTML = DATA.monitoreo.map(([situacion, accion]) =>
+    '<tr><td>' + situacion + '</td><td>' + accion + '</td></tr>'
+  ).join('');
+
+  // --- alertas de coherencia ---
+  const coherPanel = document.getElementById('coherenciaPanel');
+  const coherList = document.getElementById('coherenciaList');
+  if (coherencia.length) {
+    coherPanel.style.display = 'block';
+    coherList.innerHTML = coherencia.map(msg => '<li class="on">⚠ ' + msg + '</li>').join('');
+  } else {
+    coherPanel.style.display = 'none';
+  }
+
+  // --- gatillantes ---
+  const trigList = document.getElementById('manualTriggers');
+  trigList.innerHTML = triggers.map(t => '<li class="' + (t.on ? 'on' : '') + '">' + (t.on ? '● ' : '○ ') + t.label + '</li>').join('');
+
+  // --- drivers ---
+  document.getElementById('manualDriver1').textContent = QUESTION_LABELS[ranked[0][0]] + ' (' + ranked[0][1].toFixed(2) + ')';
+  document.getElementById('manualDriver2').textContent = QUESTION_LABELS[ranked[1][0]] + ' (' + ranked[1][1].toFixed(2) + ')';
+
+  // --- desglose ---
+  const tbody = document.getElementById('manualBreakdown');
+  tbody.innerHTML = ALL_QIDS.map((q) => {
+    const rank = ranked.findIndex(r => r[0] === q);
+    const cls = rank === 0 ? 'top1' : (rank === 1 ? 'top2' : '');
+    return '<tr class="' + cls + '"><td>' + q + ' · ' + QUESTION_LABELS[q] + '</td><td>' + (manualAnswers[q] || '') + '</td><td class="num">' + scores[q].toFixed(2) + '</td></tr>';
+  }).join('');
+}
+
+// ============================================================================
+// EXPORTACIÓN DEL PERFILAMIENTO MANUAL (JSON / Impresión-PDF)
+// ============================================================================
+function buildExportPayload(){
+  const res = computeManualResult();
+  const cliente = (document.getElementById('manualClienteId').value || '').trim() || '(sin identificar)';
+  return {
+    cliente,
+    fecha: new Date().toISOString(),
+    respuestas: Object.fromEntries(ALL_QIDS.map(q => [q, manualAnswers[q]])),
+    scores: Object.fromEntries(ALL_QIDS.map(q => [q, Number(res.scores[q].toFixed(4))])),
+    total: Number(res.total.toFixed(4)),
+    score_normalizado: Number(res.norm.toFixed(2)),
+    clasificacion: res.allValid ? res.clasif : null,
+    debida_diligencia: res.dd,
+    driver_primario: QUESTION_LABELS[res.ranked[0][0]],
+    driver_secundario: QUESTION_LABELS[res.ranked[1][0]],
+    gatillantes_activos: res.triggers.filter(t => t.on).map(t => t.label),
+    alertas_coherencia: res.coherencia,
+    respuestas_validas: res.allValid,
+    generado_por: 'Motor de Perfilamiento PLAFT V5.1 (motor_sensibilidad_plaft.html)'
+  };
+}
+
+document.getElementById('btnExportJSON').addEventListener('click', () => {
+  if (!DATA.catalogo) return;
+  const payload = buildExportPayload();
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const folio = payload.cliente.replace(/[^a-z0-9]+/gi, '_').toLowerCase();
+  a.href = url;
+  a.download = 'perfilamiento_plaft_' + folio + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('btnExportPrint').addEventListener('click', () => {
+  if (!DATA.catalogo) return;
+  const p = buildExportPayload();
+  const filas = ALL_QIDS.map(q =>
+    '<tr><td>' + q + '</td><td>' + QUESTION_LABELS[q] + '</td><td>' + (p.respuestas[q] || '') + '</td><td style="text-align:right;">' + p.scores[q].toFixed(2) + '</td></tr>'
+  ).join('');
+  const alertasHtml = p.alertas_coherencia.length
+    ? '<ul>' + p.alertas_coherencia.map(a => '<li>' + a + '</li>').join('') + '</ul>' : '<p>Sin alertas de coherencia.</p>';
+  const gatillantesHtml = p.gatillantes_activos.length
+    ? '<ul>' + p.gatillantes_activos.map(g => '<li>' + g + '</li>').join('') + '</ul>' : '<p>Ninguno activo.</p>';
+  const html = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Perfilamiento PLAFT — ' + p.cliente + '</title>' +
+    '<style>body{font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#16233A;padding:24px;}' +
+    'h1{font-size:18px;margin-bottom:2px;}h2{font-size:13px;margin:18px 0 6px;border-bottom:1px solid #ccc;padding-bottom:4px;}' +
+    'table{width:100%;border-collapse:collapse;font-size:11px;}th,td{border:1px solid #ccc;padding:5px 7px;text-align:left;}' +
+    '.kpis{display:flex;gap:14px;margin:10px 0;}.kpi{border:1px solid #ccc;border-radius:4px;padding:8px 12px;}' +
+    '.kpi b{display:block;font-size:16px;}small{color:#666;}' +
+    '@media print{button{display:none;}}</style></head><body>' +
+    '<h1>Motor de Perfilamiento PLAFT V5.1 — Resultado</h1>' +
+    '<small>Cliente/Folio: ' + p.cliente + ' · Generado: ' + new Date(p.fecha).toLocaleString('es-CL') + '</small>' +
+    '<div class="kpis">' +
+    '<div class="kpi">Total bruto<b>' + p.total.toFixed(2) + '</b></div>' +
+    '<div class="kpi">Score normalizado<b>' + p.score_normalizado.toFixed(2) + '%</b></div>' +
+    '<div class="kpi">Clasificación<b>' + (p.clasificacion || '—') + '</b></div>' +
+    '<div class="kpi">Debida diligencia<b>' + p.debida_diligencia + '</b></div>' +
+    '</div>' +
+    '<h2>Gatillantes de riesgo automático activos</h2>' + gatillantesHtml +
+    '<h2>Alertas de coherencia</h2>' + alertasHtml +
+    '<h2>Driver primario / secundario</h2><p>' + p.driver_primario + ' / ' + p.driver_secundario + '</p>' +
+    '<h2>Desglose por pregunta</h2><table><thead><tr><th>ID</th><th>Pregunta</th><th>Respuesta</th><th>Puntaje</th></tr></thead><tbody>' + filas + '</tbody></table>' +
+    '<p style="margin-top:20px;"><button onclick="window.print()">Imprimir / Guardar como PDF</button></p>' +
+    '</body></html>';
+  const win = window.open('', '_blank');
+  if (!win) { alert('El navegador bloqueó la ventana emergente. Permite pop-ups para este sitio e inténtalo de nuevo.'); return; }
+  win.document.write(html);
+  win.document.close();
+});
+
+// ============================================================================
+// IMPORTAR CUESTIONARIO KYC DESDE PDF (perfilamiento de un cliente real)
+// ============================================================================
+// Patrones para identificar a qué pregunta (P1..P19) corresponde cada etiqueta
+// del PDF. El texto exacto de la encuesta puede cambiar (el usuario advirtió
+// que se editó recientemente); por eso se matchea por palabras clave y no por
+// coincidencia exacta. Orden = prioridad: los patrones más específicos van
+// primero para no confundir preguntas parecidas (ej. P14 "Otras Fuentes..."
+// contiene "FUENTES DE INGRESOS", que también es el patrón de P11).
+const IMPORT_LABEL_PATTERNS = [
+  ['P8',  ['POLITICAMENTE EXPUESTA']],
+  ['P7',  ['FUNCIONARIO', 'SECTOR PUBLICO']],
+  ['P15', ['DENTRO DEL ESTADO', 'ULTIMOS 4', 'CARGO PUBLICO']],
+  ['P1',  ['METODO DE CONTACTO']],
+  ['P2',  ['COMO SE ENTERO', 'CONOCIO LA', 'CONOCIO RENTA', 'CONOCIO A']],
+  ['P3',  ['NIVEL EDUCACIONAL']],
+  ['P4',  ['RANGO DE EDAD']],
+  ['P5',  ['OCUPACION']],
+  ['P6',  ['RUBRO O ACTIVIDAD', 'RUBRO']],
+  ['P9',  ['HORIZONTE DE INVERSION']],
+  ['P14', ['OTRAS FUENTES', 'PATRIMONIO PERSONAL']],
+  ['P11', ['FUENTES DE INGRESOS']],
+  ['P12', ['PORCENTAJE', 'DESTINADOS A INVERSION']],
+  ['P13', ['INVERSIONES EN SISTEMA FINANCIERO', 'ACTUALES INVERSIONES']],
+  ['P10', ['INGRESOS ANUALES']],
+  ['P17', ['PAIS TRIBUTARIO']],
+  ['P16', ['NACIONALIDAD']],
+  ['P18', ['ORIGEN DEL PATRIMONIO']],
+  ['P19', ['MONEDA EXTRANJERA', 'TRANSFERENCIAS INTERNACIONALES']]
+];
+
+// Preguntas cuya respuesta en el PDF es un número/porcentaje crudo que hay que
+// ubicar dentro del tramo correspondiente del catálogo (no coincide con el
+// texto literal de ninguna opción).
+const NUMERIC_QIDS = { P10: false, P12: true, P13: false }; // valor -> ¿es porcentaje?
+
+function normalizeText(s){
+  return (s || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+}
+
+function matchLabelToQid(label){
+  const nl = normalizeText(label);
+  for (const [qid, patterns] of IMPORT_LABEL_PATTERNS) {
+    for (const p of patterns) {
+      if (nl.includes(p)) return qid;
+    }
+  }
+  return null;
+}
+
+function parseNumberEs(str){
+  let s = (str || '').toString().replace(/[^\d.,]/g, '');
+  s = s.replace(/\.(?=\d{3}(\D|$))/g, '');   // quita puntos usados como separador de miles
+  s = s.replace(',', '.');
+  return s ? parseFloat(s) : null;
+}
+
+function parseBracketRange(text){
+  const t = (text || '').toString().trim();
+  let m = t.match(/^([\d.,]+)\s*-\s*([\d.,]+)$/);
+  if (m) return [parseNumberEs(m[1]), parseNumberEs(m[2])];
+  m = t.match(/superior(?:es)?\s+a\s+([\d.,]+)/i);
+  if (m) return [parseNumberEs(m[1]), Infinity];
+  m = t.match(/superior\s+al\s+([\d.,]+)\s*%/i);
+  if (m) return [parseFloat(m[1]) / 100, Infinity];
+  m = t.match(/^([\d.,]+)%?$/);
+  if (m) { const v = parseFloat(m[1].replace(',', '.')); return [v, v]; }
+  return null;
+}
+
+function findBracketAnswer(qid, rawValue, asPercent){
+  const opts = DATA.catalogo[qid] || [];
+  let value = parseNumberEs(rawValue);
+  if (value === null) return null;
+  if (asPercent) value = value / 100;
+  for (const opt of opts) {
+    const range = parseBracketRange(opt.respuesta);
+    if (range && value >= range[0] && value <= range[1]) return opt;
+  }
+  return null;
+}
+
+// Persona natural entrega un monto único ("hasta $X" -> hay que ubicarlo dentro de
+// un tramo). Persona jurídica a veces entrega el tramo completo ya armado ("$X - $Y"),
+// que solo necesita normalizarse (sacar espacios alrededor del guion) para calzar
+// literalmente contra el catálogo. Se intenta primero lo más específico (tramo
+// completo) y se cae al segundo método (monto único) si no hay coincidencia.
+function resolveNumericAnswer(qid, answer, asPercent){
+  const normalizedDash = (answer || '').replace(/\s*-\s*/g, '-');
+  const literal = manualLookup(qid, normalizedDash);
+  if (literal) return literal;
+  return findBracketAnswer(qid, answer, asPercent);
+}
+
+// Reconstruye líneas de texto a partir de los fragmentos posicionados que
+// entrega pdf.js, agrupando por coordenada Y (misma fila del PDF).
+async function extractPdfLines(arrayBuffer){
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const lines = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    const items = content.items.map(it => ({ str: it.str, x: it.transform[4], y: it.transform[5] }));
+    const groups = {};
+    items.forEach(it => {
+      const key = Math.round(it.y);
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(it);
+    });
+    const ys = Object.keys(groups).map(Number).sort((a, b) => b - a);
+    ys.forEach(y => {
+      const rowItems = groups[y].sort((a, b) => a.x - b.x);
+      const text = rowItems.map(it => it.str).join(' ').replace(/\s+/g, ' ').trim();
+      if (text) lines.push(text);
+    });
+  }
+  return lines;
+}
+
+// Empareja cada línea "Pregunta" con su línea "- Respuesta" siguiente.
+function parseKycPdfText(lines){
+  const pairs = [];
+  let pendingLabel = [];
+  let cliente = null, rut = null;
+  lines.forEach(line => {
+    const stripped = line.trim();
+    if (!stripped) return;
+    if (/^cliente\s*:/i.test(stripped)) { cliente = stripped.replace(/^cliente\s*:/i, '').trim(); return; }
+    if (/^rut\s*:/i.test(stripped)) { rut = stripped.replace(/^rut\s*:/i, '').trim(); return; }
+    if (/^fecha\s*:/i.test(stripped)) return;
+    if (/^encuesta\s+kyc/i.test(stripped)) return;
+    if (/^\d+$/.test(stripped)) return; // número de página suelto
+    if (/^-/.test(stripped)) {
+      const label = pendingLabel.join(' ').trim();
+      const answer = stripped.replace(/^-+\s*/, '').trim();
+      if (label) pairs.push({ label, answer });
+      pendingLabel = [];
+    } else {
+      pendingLabel.push(stripped);
+    }
+  });
+  return { pairs, cliente, rut };
+}
+
+function setPdfStatus(kind, html){
+  const el = document.getElementById('pdfImportStatus');
+  el.className = 'upload-status' + (kind ? ' ' + kind : '');
+  el.innerHTML = '<span class="label">Cuestionario cargado</span>' + html;
+}
+
+async function handlePdfImport(file){
+  if (!file) return;
+  if (!file.name.toLowerCase().endsWith('.pdf')) {
+    setPdfStatus('err', 'El archivo debe ser .pdf (' + file.name + ')');
+    return;
+  }
+  if (!DATA.catalogo) {
+    setPdfStatus('err', 'Primero carga Matriz_Riesgo_PLAFT.xlsx arriba — el motor necesita el catálogo vigente para interpretar las respuestas.');
+    return;
+  }
+  setPdfStatus('', 'Leyendo ' + file.name + '…');
+  try {
+    const buf = await file.arrayBuffer();
+    const lines = await extractPdfLines(buf);
+    const { pairs, cliente, rut } = parseKycPdfText(lines);
+    if (!pairs.length) throw new Error('No se encontraron pares pregunta/respuesta en el PDF (¿es un PDF escaneado sin texto?)');
+
+    const found = {};
+    const unmatchedLabels = [];
+    const noMatchInCatalog = [];
+
+    pairs.forEach(({ label, answer }) => {
+      const qid = matchLabelToQid(label);
+      if (!qid) { unmatchedLabels.push(label); return; }
+      if (found[qid]) return; // ya asignada por una coincidencia anterior; no sobreescribir
+
+      let match = null;
+
+      if (qid === 'P19') {
+        // Persona jurídica suele responder "Sí"/"No" a secas, sin distinguir cuentas
+        // propias de terceros — esa distinción es justo la que dispara Alto Automático,
+        // así que un "Sí" ambiguo NO se resuelve solo: queda sin dato para completar a mano.
+        const up = normalizeText(answer);
+        if (up === 'NO') match = manualLookup('P19', 'NO');
+        else if (up.includes('TERCEROS')) match = manualLookup('P19', 'SI, A CUENTAS DE TERCEROS');
+        else if (up.includes('PROPIA')) match = manualLookup('P19', 'SI, SOLO ENTRE CUENTAS PROPIAS');
+        else if (up === 'SI' || up === 'SÍ') {
+          noMatchInCatalog.push(qid + ' — "' + answer + '" (' + label + ') es ambiguo: no especifica cuentas propias o de terceros; se deja sin dato para seleccionar a mano');
+          return;
+        } else match = manualLookup('P19', answer);
+      } else if (qid in NUMERIC_QIDS) {
+        match = resolveNumericAnswer(qid, answer, NUMERIC_QIDS[qid]);
+      } else {
+        match = manualLookup(qid, answer);
+      }
+
+      if (match) found[qid] = { raw: answer, label, match };
+      else noMatchInCatalog.push(qid + ' — "' + answer + '" (' + label + ') no calza con ninguna opción del catálogo vigente');
+    });
+
+    const esJuridica = pairs.some(({ label }) => normalizeText(label).includes('TIPO DE SOCIEDAD'));
+
+    // Se reemplaza el formulario completo con lo que dice el PDF: lo encontrado se
+    // rellena, lo NO encontrado queda explícitamente en blanco (nunca se fuerza).
+    ALL_QIDS.forEach(qid => {
+      manualAnswers[qid] = found[qid] ? found[qid].match.respuesta : '';
+      const input = document.querySelector('.qinput[data-qid="' + qid + '"]');
+      if (input) input.value = manualAnswers[qid];
+    });
+
+    if (cliente) document.getElementById('manualClienteId').value = cliente + (rut ? ' — ' + rut : '');
+
+    renderManual();
+
+    const faltantes = ALL_QIDS.filter(qid => !found[qid]);
+    const nOk = Object.keys(found).length;
+    const tipoTxt = esJuridica ? 'Persona Jurídica' : 'Persona Natural';
+    setPdfStatus('ok', '<b>' + file.name + '</b><br>' + nOk + ' de 19 preguntas importadas' + (cliente ? ' · ' + cliente : '') + ' · ' + tipoTxt);
+
+    const parts = [];
+    parts.push('<b>Tipo de cliente detectado:</b> ' + tipoTxt + (esJuridica ? ' (menos preguntas aplican — es normal, no un error)' : ''));
+    parts.push('<b>Importadas (' + nOk + '/19):</b> ' + (Object.keys(found).sort().join(', ') || '—'));
+    parts.push('<b>Sin dato en el PDF — quedaron en blanco (' + faltantes.length + '):</b> ' + (faltantes.join(', ') || '—'));
+    if (noMatchInCatalog.length) parts.push('<b>⚠ Respuesta no reconocida o ambigua:</b><br>' + noMatchInCatalog.join('<br>'));
+    if (unmatchedLabels.length) parts.push('<b>Preguntas del PDF que el motor no logró identificar:</b><br>' + unmatchedLabels.join('<br>'));
+    const summaryEl = document.getElementById('pdfImportSummary');
+    summaryEl.style.display = 'block';
+    summaryEl.innerHTML = parts.join('<br><br>');
+  } catch (err) {
+    setPdfStatus('err', 'No se pudo leer el PDF: ' + err.message);
+    console.error(err);
+  }
+}
+
+document.getElementById('fileInputPdf').addEventListener('change', (e) => handlePdfImport(e.target.files[0]));
+const dropzonePdf = document.getElementById('dropzonePdf');
+['dragenter', 'dragover'].forEach(evt => dropzonePdf.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); dropzonePdf.classList.add('drag'); }));
+['dragleave', 'drop'].forEach(evt => dropzonePdf.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); dropzonePdf.classList.remove('drag'); }));
+dropzonePdf.addEventListener('drop', (e) => { const file = e.dataTransfer.files && e.dataTransfer.files[0]; handlePdfImport(file); });
+
+// ============================================================================
+// ANÁLISIS MANUAL — preguntas y respuestas desglosables (sin carga de PDF)
+// ============================================================================
+let analysisAnswers = {};
+
+function initAnalysisTab(){
+  const locked = document.getElementById('analysisLocked');
+  const content = document.getElementById('analysisContent');
+  if (!DATA.catalogo) { locked.style.display = 'block'; content.style.display = 'none'; return; }
+  locked.style.display = 'none'; content.style.display = 'block';
+
+  analysisAnswers = {};
+  ALL_QIDS.forEach(qid => {
+    // Arranca en la opción de MENOR puntaje de cada pregunta (línea base conservadora),
+    // no en la primera fila del catálogo — el orden de la hoja es arbitrario y podía
+    // dejar el análisis arrancando en ALTO por coincidencia (ej. PEP=SI de entrada).
+    const opts = DATA.catalogo[qid];
+    const minOpt = [...opts].sort((a, b) => a.puntaje - b.puntaje)[0];
+    analysisAnswers[qid] = minOpt.respuesta;
+  });
+
+  buildAnalysisAccordion();
+  renderAnalysisResults();
+}
+
+function buildAnalysisAccordion(){
+  const wrap = document.getElementById('qaccordion');
+  wrap.innerHTML = '';
+  ALL_QIDS.forEach(qid => {
+    const opts = DATA.catalogo[qid];
+
+    const item = document.createElement('div');
+    item.className = 'qa-item';
+    item.id = 'qa-item-' + qid;
+
+    const header = document.createElement('button');
+    header.type = 'button';
+    header.className = 'qa-header';
+    header.innerHTML =
+      '<span class="qa-qid">' + qid + '</span>' +
+      '<span class="qa-label">' + QUESTION_LABELS[qid] + '</span>' +
+      '<span class="qa-current" id="qa-current-' + qid + '"></span>' +
+      '<span class="qa-score" id="qa-score-' + qid + '"></span>' +
+      '<span class="qa-chevron">▾</span>';
+    header.addEventListener('click', () => toggleAnalysisItem(qid));
+
+    const body = document.createElement('div');
+    body.className = 'qa-body';
+
+    if (opts.length > 12) {
+      const filter = document.createElement('input');
+      filter.type = 'text';
+      filter.className = 'qa-filter';
+      filter.placeholder = 'Buscar entre ' + opts.length + ' opciones…';
+      filter.addEventListener('input', () => filterAnalysisOptions(qid, filter.value));
+      filter.addEventListener('click', (e) => e.stopPropagation());
+      body.appendChild(filter);
+    }
+
+    const optionsWrap = document.createElement('div');
+    optionsWrap.className = 'qa-options';
+    optionsWrap.id = 'qa-options-' + qid;
+    opts.forEach(o => {
+      const row = document.createElement('div');
+      row.className = 'qa-option';
+      row.dataset.respuesta = o.respuesta;
+      row.innerHTML = '<span>' + o.respuesta + '</span><span class="qa-opt-score">' + o.puntaje.toFixed(2) + '</span>';
+      row.addEventListener('click', () => selectAnalysisAnswer(qid, o.respuesta));
+      optionsWrap.appendChild(row);
+    });
+    body.appendChild(optionsWrap);
+
+    item.appendChild(header);
+    item.appendChild(body);
+    wrap.appendChild(item);
+  });
+}
+
+function toggleAnalysisItem(qid){
+  const item = document.getElementById('qa-item-' + qid);
+  const isOpen = item.classList.contains('open');
+  document.querySelectorAll('#qaccordion .qa-item.open').forEach(el => el.classList.remove('open'));
+  if (!isOpen) item.classList.add('open');
+}
+
+function filterAnalysisOptions(qid, query){
+  const q = normalizeText(query);
+  document.querySelectorAll('#qa-options-' + qid + ' .qa-option').forEach(row => {
+    row.style.display = normalizeText(row.dataset.respuesta).includes(q) ? 'flex' : 'none';
+  });
+}
+
+function selectAnalysisAnswer(qid, respuesta){
+  analysisAnswers[qid] = respuesta;
+  document.getElementById('qa-item-' + qid).classList.remove('open');
+  renderAnalysisResults();
+}
+
+function renderAnalysisResults(){
+  if (!DATA.catalogo) return;
+  const res = computeManualResult(analysisAnswers);
+
+  ALL_QIDS.forEach(qid => {
+    const match = manualLookup(qid, analysisAnswers[qid]);
+    document.getElementById('qa-current-' + qid).textContent = analysisAnswers[qid];
+    document.getElementById('qa-score-' + qid).textContent = match ? match.puntaje.toFixed(2) : '—';
+    document.querySelectorAll('#qa-options-' + qid + ' .qa-option').forEach(row => {
+      row.classList.toggle('selected', row.dataset.respuesta === analysisAnswers[qid]);
+    });
+  });
+
+  document.getElementById('analysisTotal').textContent = res.total.toFixed(2);
+  document.getElementById('analysisNorm').textContent = res.norm.toFixed(2) + '%';
+  const pill = document.getElementById('analysisClasifPill');
+  pill.textContent = res.allValid ? res.clasif : '—';
+  pill.className = 'pill ' + (res.allValid ? res.clasif : '');
+  document.getElementById('analysisDD').textContent = res.dd;
+
+  const marker = document.getElementById('gaugeMarkerAnalysis');
+  const pct = Math.min(100, Math.max(0, res.norm));
+  marker.style.left = pct + '%';
+  marker.setAttribute('data-val', res.norm.toFixed(1));
+
+  const coherPanel = document.getElementById('analysisCoherenciaPanel');
+  const coherList = document.getElementById('analysisCoherenciaList');
+  if (res.coherencia.length) {
+    coherPanel.style.display = 'block';
+    coherList.innerHTML = res.coherencia.map(msg => '<li class="on">⚠ ' + msg + '</li>').join('');
+  } else {
+    coherPanel.style.display = 'none';
+  }
+
+  const trigList = document.getElementById('analysisTriggers');
+  trigList.innerHTML = res.triggers.map(t => '<li class="' + (t.on ? 'on' : '') + '">' + (t.on ? '● ' : '○ ') + t.label + '</li>').join('');
+
+  document.getElementById('analysisDriver1').textContent = QUESTION_LABELS[res.ranked[0][0]] + ' (' + res.ranked[0][1].toFixed(2) + ')';
+  document.getElementById('analysisDriver2').textContent = QUESTION_LABELS[res.ranked[1][0]] + ' (' + res.ranked[1][1].toFixed(2) + ')';
+
+  const tbody = document.getElementById('analysisBreakdown');
+  tbody.innerHTML = ALL_QIDS.map((q) => {
+    const rank = res.ranked.findIndex(r => r[0] === q);
+    const cls = rank === 0 ? 'top1' : (rank === 1 ? 'top2' : '');
+    return '<tr class="' + cls + '"><td>' + q + ' · ' + QUESTION_LABELS[q] + '</td><td>' + (analysisAnswers[q] || '') + '</td><td class="num">' + res.scores[q].toFixed(2) + '</td></tr>';
+  }).join('');
+}
+
+// ============================================================================
+// TEST DE STRESS — OTRAS VARIABLES (generalización del patrón CESANTE)
+// ============================================================================
+let scenarioCache = {};
+
+function pickScenarioAnswers(qid){
+  if (scenarioCache[qid]) return scenarioCache[qid];
+  const opts = DATA.catalogo[qid];
+  const sorted = [...opts].sort((a, b) => a.puntaje - b.puntaje);
+  const cons = sorted[0];
+  const extremo = sorted[sorted.length - 1];
+  let promedio;
+  if (opts.length <= 2) {
+    promedio = cons;   // binario: sin punto medio real, Promedio se comporta como Conservador
+  } else {
+    const mean = opts.reduce((s, o) => s + o.puntaje, 0) / opts.length;
+    const candidates = [...opts].sort((a, b) => Math.abs(a.puntaje - mean) - Math.abs(b.puntaje - mean));
+    promedio = candidates[0];
+    if (promedio.respuesta === cons.respuesta || promedio.respuesta === extremo.respuesta) {
+      const alt = candidates.find(c => c.respuesta !== cons.respuesta && c.respuesta !== extremo.respuesta);
+      if (alt) promedio = alt;
+    }
+  }
+  const result = { Conservador: cons, Promedio: promedio, Extremo: extremo };
+  scenarioCache[qid] = result;
+  return result;
+}
+
+let stressTestQid = 'P1';
+let stressTestAnswer = '';
+let stressPonderaciones = { Conservador: 0, Promedio: 0, Arriesgado: 0 };
+let stressIntensidad = 'Conservador';
+let stressGatillantesNeutral = true;
+let stressEscenarioDestacado = 'Arriesgado';
+let stressChartGenericInstance = null;
+
+function buildAnswersForScenario(testOption, intensidadKey, gatillantesNeutral){
+  const answers = {};
+  answers[stressTestQid] = testOption;
+  ALL_QIDS.forEach(qid => {
+    if (qid === stressTestQid) return;
+    if (GATILLANTE_QIDS.includes(qid)) {
+      const resp = gatillantesNeutral ? RECETA.gatillantesNeutral[qid] : RECETA.gatillantesAlto[qid];
+      answers[qid] = manualLookup(qid, resp);
+    } else {
+      answers[qid] = pickScenarioAnswers(qid)[intensidadKey];
+    }
+  });
+  return answers;
+}
+
+function calcGeneric(pond, intensidadKey, gatillantesNeutral){
+  const pesoTest = DATA.pesoPregunta[stressTestQid];
+  const testOption = { respuesta: stressTestAnswer, ponderacion: pond, puntaje: pond * pesoTest };
+  const answers = buildAnswersForScenario(testOption, intensidadKey, gatillantesNeutral);
+  const total = ALL_QIDS.reduce((s, q) => s + answers[q].puntaje, 0);
+  const norm = (total - DATA.minTotal) / (DATA.maxTotal - DATA.minTotal) * 100;
+
+  const isPEP = answers.P8.respuesta.trim().toUpperCase() === 'SI';
+  const isCargoEstado = answers.P15.respuesta.trim().toUpperCase() === 'SI';
+  const nacRoja = answers.P16.ponderacion === 1;
+  const ptRoja = answers.P17.ponderacion === 1;
+  const nacGris = answers.P16.ponderacion === 0.5 || answers.P16.ponderacion === 0.6;
+  const ptGris = answers.P17.ponderacion === 0.5 || answers.P17.ponderacion === 0.6;
+  const fxTerceros = answers.P19.respuesta.trim().toUpperCase().includes('TERCEROS');
+  const anyAlto = isPEP || isCargoEstado || nacRoja || ptRoja || fxTerceros;
+  const anyMedio = nacGris || ptGris;
+
+  let clasif;
+  if (anyAlto || norm > DATA.umbral2) clasif = 'ALTO';
+  else if (anyMedio || norm >= DATA.umbral1) clasif = 'MEDIO';
+  else clasif = 'BAJO';
+
+  return { total, norm, clasif, answers, scoreTest: testOption.puntaje };
+}
+
+function initStressTab(){
+  const locked = document.getElementById('stressLocked');
+  const content = document.getElementById('stressContent');
+  if (!DATA.catalogo) { locked.style.display = 'block'; content.style.display = 'none'; return; }
+  locked.style.display = 'none'; content.style.display = 'block';
+
+  const qidSelect = document.getElementById('stressQidSelect');
+  qidSelect.innerHTML = ALL_QIDS.map(q => '<option value="' + q + '">' + q + ' — ' + QUESTION_LABELS[q] + '</option>').join('');
+  if (!DATA.catalogo[stressTestQid]) stressTestQid = 'P1';
+  qidSelect.value = stressTestQid;
+
+  renderTornadoChart();
+  onStressQidChange();
+}
+
+let tornadoChartInstance = null;
+function renderTornadoChart(){
+  if (!DATA.catalogo) return;
+  const rows = ALL_QIDS.map(qid => {
+    const sc = pickScenarioAnswers(qid);
+    return { qid, min: sc.Conservador.puntaje, max: sc.Extremo.puntaje, range: sc.Extremo.puntaje - sc.Conservador.puntaje };
+  }).sort((a, b) => b.range - a.range);
+
+  const labels = rows.map(r => r.qid + ' · ' + QUESTION_LABELS[r.qid]);
+  const data = rows.map(r => [r.min, r.max]);
+
+  const canvas = document.getElementById('tornadoChart');
+  const ctx = canvas.getContext('2d');
+  if (tornadoChartInstance) tornadoChartInstance.destroy();
+  tornadoChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'Rango de puntaje (mín–máx)', data, backgroundColor: '#2C5F8A99', borderColor: '#2C5F8A', borderWidth: 1, borderRadius: 2 }] },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (c) => 'Mín ' + c.raw[0].toFixed(2) + ' — Máx ' + c.raw[1].toFixed(2) + ' (rango ' + (c.raw[1] - c.raw[0]).toFixed(2) + ')' } }
+      },
+      scales: {
+        x: { title: { display: true, text: 'Puntaje', font: { family: "'IBM Plex Sans'", size: 11 } }, grid: { color: '#E4E8EE' }, ticks: { font: { family: "'IBM Plex Mono'", size: 10.5 } } },
+        y: { ticks: { font: { family: "'IBM Plex Sans'", size: 10.5 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+function onStressQidChange(){
+  stressTestQid = document.getElementById('stressQidSelect').value;
+  const opts = DATA.catalogo[stressTestQid];
+  const datalist = document.getElementById('dl-stress-resp');
+  datalist.innerHTML = opts.map(o => '<option value="' + o.respuesta.replace(/"/g, '&quot;') + '">').join('');
+
+  const maxOpt = [...opts].sort((a, b) => b.puntaje - a.puntaje)[0];
+  stressTestAnswer = maxOpt.respuesta;
+  document.getElementById('stressRespInput').value = stressTestAnswer;
+
+  onStressRespChange(true);
+}
+
+function onStressRespChange(resetCandidatos){
+  const input = document.getElementById('stressRespInput');
+  stressTestAnswer = input.value;
+  const match = manualLookup(stressTestQid, stressTestAnswer);
+  const tag = document.getElementById('stressCurrentPond');
+  if (match) {
+    input.classList.remove('invalid');
+    tag.textContent = 'Ponderación vigente: ' + match.ponderacion;
+    if (resetCandidatos) {
+      stressPonderaciones = {
+        Conservador: Math.round(match.ponderacion * 0.5 * 100) / 100,
+        Promedio: match.ponderacion,
+        Arriesgado: Math.round(match.ponderacion * 1.5 * 100) / 100
+      };
+    }
+  } else {
+    input.classList.add('invalid');
+    tag.textContent = 'respuesta no encontrada';
+  }
+  renderStressTab();
+}
+
+function renderStressTab(){
+  if (!DATA.catalogo) return;
+  const ESC = ['Conservador', 'Promedio', 'Arriesgado'];
+  const INT = ['Conservador', 'Promedio', 'Extremo'];
+
+  ESC.forEach(esc => {
+    document.getElementById('srange-' + esc).value = stressPonderaciones[esc];
+    document.getElementById('snum-' + esc).value = stressPonderaciones[esc].toFixed(2);
+  });
+
+  if (!stressChartGenericInstance) {
+    const ctx = document.getElementById('stressChartGeneric').getContext('2d');
+    stressChartGenericInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: ESC,
+        datasets: [
+          ...INT.map(i => ({ label: 'Intensidad ' + i, data: [0, 0, 0], borderColor: COLORS[i], backgroundColor: COLORS[i], borderWidth: 2.5, pointRadius: 5, pointHoverRadius: 7, tension: 0.25 })),
+          { label: 'Umbral Medio', data: [0, 0, 0], borderColor: '#B9791A', borderDash: [6, 4], borderWidth: 1.3, pointRadius: 0 },
+          { label: 'Umbral Alto', data: [0, 0, 0], borderColor: '#B23B3B', borderDash: [6, 4], borderWidth: 1.3, pointRadius: 0 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { family: "'IBM Plex Sans'", size: 11 }, boxWidth: 12, usePointStyle: true } },
+          tooltip: { callbacks: { label: (c) => c.dataset.label + ': ' + c.parsed.y.toFixed(2) + '%' } }
+        },
+        scales: {
+          y: { min: 0, max: 100, title: { display: true, text: 'Score normalizado (0–100)', font: { family: "'IBM Plex Sans'", size: 11 } }, grid: { color: '#E4E8EE' }, ticks: { font: { family: "'IBM Plex Mono'", size: 10.5 } } },
+          x: { title: { display: true, text: 'Ponderación candidata', font: { family: "'IBM Plex Sans'", size: 11 } }, grid: { display: false }, ticks: { font: { family: "'IBM Plex Sans'", size: 11.5, weight: 600 } } }
+        }
+      }
+    });
+  }
+  INT.forEach((intens, di) => {
+    stressChartGenericInstance.data.datasets[di].data = ESC.map(esc => calcGeneric(stressPonderaciones[esc], intens, stressGatillantesNeutral).norm);
+  });
+  stressChartGenericInstance.data.datasets[3].data = [DATA.umbral1, DATA.umbral1, DATA.umbral1];
+  stressChartGenericInstance.data.datasets[4].data = [DATA.umbral2, DATA.umbral2, DATA.umbral2];
+  stressChartGenericInstance.data.datasets[3].label = 'Umbral Medio (' + DATA.umbral1.toFixed(1).replace('.', ',') + ')';
+  stressChartGenericInstance.data.datasets[4].label = 'Umbral Alto (' + DATA.umbral2.toFixed(1).replace('.', ',') + ')';
+  stressChartGenericInstance.update('none');
+
+  ESC.forEach(esc => {
+    const r = calcGeneric(stressPonderaciones[esc], stressIntensidad, stressGatillantesNeutral);
+    const tag = document.getElementById('stag-' + esc);
+    tag.textContent = r.clasif;
+    tag.style.background = r.clasif === 'BAJO' ? 'var(--bajo-bg)' : r.clasif === 'MEDIO' ? 'var(--medio-bg)' : 'var(--alto-bg)';
+    tag.style.color = r.clasif === 'BAJO' ? 'var(--bajo)' : r.clasif === 'MEDIO' ? 'var(--medio)' : 'var(--alto)';
+    document.getElementById('sscore-' + esc).textContent = r.scoreTest.toFixed(2);
+  });
+
+  const tbody = document.getElementById('stressMatrixBody');
+  tbody.innerHTML = '';
+  ESC.forEach(esc => {
+    INT.forEach(intens => {
+      const r = calcGeneric(stressPonderaciones[esc], intens, stressGatillantesNeutral);
+      const tr = document.createElement('tr');
+      if (esc === stressEscenarioDestacado && intens === stressIntensidad) tr.className = 'row-highlight';
+      tr.innerHTML = '<td>' + esc + ' (' + stressPonderaciones[esc].toFixed(2) + ')</td><td>' + intens + '</td><td class="num">' + r.total.toFixed(2) + '</td><td class="num">' + r.norm.toFixed(2) + '%</td><td><span class="pill ' + r.clasif + '">' + r.clasif + '</span></td><td>' + ddLabel(r.clasif) + '</td>';
+      tbody.appendChild(tr);
+    });
+  });
+
+  const destacado = calcGeneric(stressPonderaciones[stressEscenarioDestacado], stressIntensidad, stressGatillantesNeutral);
+  document.getElementById('stressGaugeTitle').textContent = stressEscenarioDestacado + ' · Intensidad ' + stressIntensidad;
+  document.getElementById('stressDD').textContent = ddLabel(destacado.clasif);
+  const marker = document.getElementById('stressGaugeMarker');
+  const pct = Math.min(100, Math.max(0, destacado.norm));
+  marker.style.left = pct + '%';
+  marker.setAttribute('data-val', destacado.norm.toFixed(1));
+
+  const tbody2 = document.getElementById('stressBreakdown');
+  const ranked = ALL_QIDS.map(q => [q, destacado.answers[q].puntaje]).sort((a, b) => b[1] - a[1]);
+  tbody2.innerHTML = ALL_QIDS.map(q => {
+    const rank = ranked.findIndex(r => r[0] === q);
+    const cls = rank === 0 ? 'top1' : (rank === 1 ? 'top2' : '');
+    const marcaTest = q === stressTestQid ? ' (bajo prueba)' : '';
+    return '<tr class="' + cls + '"><td>' + q + ' · ' + QUESTION_LABELS[q] + marcaTest + '</td><td>' + destacado.answers[q].respuesta + '</td><td class="num">' + destacado.answers[q].puntaje.toFixed(2) + '</td></tr>';
+  }).join('');
+}
+
+// ============================================================================
+// CARGA DE ARCHIVO
+// ============================================================================
+const fileInput = document.getElementById('fileInput');
+const dropzone = document.getElementById('dropzone');
+const uploadStatus = document.getElementById('uploadStatus');
+const btnClear = document.getElementById('btnClear');
+
+function setStatus(kind, html){
+  uploadStatus.className = 'upload-status' + (kind ? ' ' + kind : '');
+  uploadStatus.innerHTML = '<span class="label">Fuente de datos</span>' + html;
+}
+
+function updateRiesgoAutoWarning(){
+  const box = document.getElementById('riesgoAutoWarning');
+  const v = DATA.riesgoAutoValidation;
+  if (v.ok) { box.style.display = 'none'; return; }
+  const partes = [];
+  if (v.extraAlto.length) partes.push('gatillantes Alto no reconocidos: "' + v.extraAlto.join('", "') + '"');
+  if (v.missingAlto.length) partes.push('gatillantes Alto esperados que ya no están: "' + v.missingAlto.join('", "') + '"');
+  if (v.extraMedio.length) partes.push('gatillantes Medio no reconocidos: "' + v.extraMedio.join('", "') + '"');
+  if (v.missingMedio.length) partes.push('gatillantes Medio esperados que ya no están: "' + v.missingMedio.join('", "') + '"');
+  box.innerHTML = '<span class="label">⚠ Hoja "Riesgo Automatico" no coincide con la lógica aplicada</span>' +
+    partes.join(' · ') + '. Esta herramienta sigue aplicando solo los 5 gatillantes originales — avisa para actualizar el código si el cambio es intencional.';
+  box.style.display = 'block';
+}
+
+function handleFile(file){
+  if (!file) return;
+  if (!file.name.toLowerCase().endsWith('.xlsx')){
+    setStatus('err', 'El archivo debe ser .xlsx (' + file.name + ')');
+    return;
+  }
+  setStatus('', 'Leyendo ' + file.name + '…');
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      const nuevo = loadFromWorkbook(wb);
+      DATA = nuevo;
+      ponderaciones = { ...DATA.candidatos };
+      scenarioCache = {};
+      const ahora = new Date().toLocaleTimeString('es-CL', { hour:'2-digit', minute:'2-digit' });
+      setStatus('ok', '<b>' + file.name + '</b><br>Cargado ' + ahora + ' · ' + Object.keys(DATA.candidatos).length + ' escenarios detectados');
+      updateRiesgoAutoWarning();
+      render();
+      initManualForm();
+      initStressTab();
+      initAnalysisTab();
+    } catch (err) {
+      setStatus('err', 'Error al leer el archivo: ' + err.message);
+      console.error(err);
+    }
+  };
+  reader.onerror = () => setStatus('err', 'No se pudo leer el archivo.');
+  reader.readAsArrayBuffer(file);
+}
+
+fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+['dragenter','dragover'].forEach(evt => dropzone.addEventListener(evt, (e) => {
+  e.preventDefault(); e.stopPropagation(); dropzone.classList.add('drag');
+}));
+['dragleave','drop'].forEach(evt => dropzone.addEventListener(evt, (e) => {
+  e.preventDefault(); e.stopPropagation(); dropzone.classList.remove('drag');
+}));
+dropzone.addEventListener('drop', (e) => {
+  const file = e.dataTransfer.files && e.dataTransfer.files[0];
+  handleFile(file);
+});
+
+btnClear.addEventListener('click', () => {
+  DATA = JSON.parse(JSON.stringify(DEFAULT_DATA));
+  ponderaciones = { ...DATA.candidatos };
+  scenarioCache = {};
+  fileInput.value = '';
+  setStatus('', 'Datos de referencia embebidos (sin archivo cargado)');
+  document.getElementById('riesgoAutoWarning').style.display = 'none';
+  render();
+  initManualForm();
+  initStressTab();
+  initAnalysisTab();
+});
+
+// ---- eventos pestaña Test de Stress — Otras Variables ----
+document.getElementById('stressQidSelect').addEventListener('change', () => onStressQidChange());
+document.getElementById('stressRespInput').addEventListener('input', () => onStressRespChange(false));
+
+['Conservador','Promedio','Arriesgado'].forEach(esc => {
+  const rangeEl = document.getElementById('srange-'+esc);
+  const numEl = document.getElementById('snum-'+esc);
+  rangeEl.addEventListener('input', () => { stressPonderaciones[esc] = parseFloat(rangeEl.value); numEl.value = rangeEl.value; renderStressTab(); });
+  numEl.addEventListener('input', () => {
+    let v = parseFloat(numEl.value);
+    if (isNaN(v)) return;
+    v = Math.max(0, v);
+    stressPonderaciones[esc] = v;
+    rangeEl.value = Math.min(3, v);
+    renderStressTab();
+  });
+  document.querySelector('#tab-stress .field[data-field="'+esc+'"]').addEventListener('click', (e) => {
+    if (e.target.tagName !== 'INPUT') { stressEscenarioDestacado = esc; renderStressTab(); }
+  });
+});
+
+document.getElementById('segIntensidadStress').addEventListener('click', (e) => {
+  if (e.target.tagName !== 'BUTTON') return;
+  document.querySelectorAll('#segIntensidadStress button').forEach(b => b.classList.remove('active'));
+  e.target.classList.add('active');
+  stressIntensidad = e.target.dataset.val;
+  renderStressTab();
+});
+
+document.getElementById('stressToggleGatillantes').addEventListener('change', (e) => {
+  stressGatillantesNeutral = e.target.checked;
+  renderStressTab();
+});
+
+document.getElementById('sbtnReset').addEventListener('click', () => onStressRespChange(true));
+
+// ============================================================================
+// COMPARADOR DE VERSIONES DE LA MATRIZ
+// ============================================================================
+let diffFileA = null, diffFileB = null;
+
+function setDiffStatus(slot, kind, html){
+  const el = document.getElementById('diffStatus' + slot);
+  el.className = 'upload-status' + (kind ? ' ' + kind : '');
+  el.innerHTML = '<span class="label">Versión ' + slot + '</span>' + html;
+}
+
+function handleDiffFile(file, slot){
+  if (!file) return;
+  if (!file.name.toLowerCase().endsWith('.xlsx')) {
+    setDiffStatus(slot, 'err', 'El archivo debe ser .xlsx (' + file.name + ')');
+    return;
+  }
+  setDiffStatus(slot, '', 'Leyendo ' + file.name + '…');
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      if (!wb.Sheets['Ponderación de Preguntas']) throw new Error('No se encontró la hoja "Ponderación de Preguntas"');
+      const parsed = parsePonderacionSheet(wb.Sheets['Ponderación de Preguntas']);
+      const clasif = wb.Sheets['Clasificacion']
+        ? parseClasificacionSheet(wb.Sheets['Clasificacion'])
+        : { umbral1: null, umbral2: null };
+      const result = Object.assign({ nombre: file.name }, parsed, clasif);
+      if (slot === 'A') diffFileA = result; else diffFileB = result;
+      setDiffStatus(slot, 'ok', '<b>' + file.name + '</b><br>Cargado correctamente');
+      tryRenderDiff();
+    } catch (err) {
+      setDiffStatus(slot, 'err', 'Error al leer el archivo: ' + err.message);
+      console.error(err);
+    }
+  };
+  reader.onerror = () => setDiffStatus(slot, 'err', 'No se pudo leer el archivo.');
+  reader.readAsArrayBuffer(file);
+}
+
+function tryRenderDiff(){
+  if (!diffFileA || !diffFileB) return;
+
+  const rows = [];
+  ALL_QIDS.forEach(qid => {
+    const a = diffFileA.catalogo[qid] || [];
+    const b = diffFileB.catalogo[qid] || [];
+    const mapA = Object.fromEntries(a.map(o => [o.respuesta.trim().toUpperCase(), o]));
+    const mapB = Object.fromEntries(b.map(o => [o.respuesta.trim().toUpperCase(), o]));
+    const keys = new Set([...Object.keys(mapA), ...Object.keys(mapB)]);
+    keys.forEach(k => {
+      const oa = mapA[k], ob = mapB[k];
+      if (oa && ob) {
+        if (oa.puntaje !== ob.puntaje || oa.ponderacion !== ob.ponderacion) {
+          rows.push({ tipo: 'MODIFICADO', qid, respuesta: oa.respuesta, pondA: oa.ponderacion, pondB: ob.ponderacion, puntA: oa.puntaje, puntB: ob.puntaje, delta: ob.puntaje - oa.puntaje });
+        }
+      } else if (!oa && ob) {
+        rows.push({ tipo: 'AGREGADO', qid, respuesta: ob.respuesta, pondA: null, pondB: ob.ponderacion, puntA: null, puntB: ob.puntaje, delta: ob.puntaje });
+      } else if (oa && !ob) {
+        rows.push({ tipo: 'ELIMINADO', qid, respuesta: oa.respuesta, pondA: oa.ponderacion, pondB: null, puntA: oa.puntaje, puntB: null, delta: -oa.puntaje });
+      }
+    });
+  });
+
+  rows.sort((r1, r2) => Math.abs(r2.delta) - Math.abs(r1.delta));
+
+  const nMod = rows.filter(r => r.tipo === 'MODIFICADO').length;
+  const nAdd = rows.filter(r => r.tipo === 'AGREGADO').length;
+  const nDel = rows.filter(r => r.tipo === 'ELIMINADO').length;
+  document.getElementById('diffCountMod').textContent = nMod;
+  document.getElementById('diffCountAdd').textContent = nAdd;
+  document.getElementById('diffCountDel').textContent = nDel;
+
+  const paramChanges = [];
+  if (diffFileA.minTotal !== diffFileB.minTotal || diffFileA.maxTotal !== diffFileB.maxTotal) {
+    paramChanges.push('Rango teórico del puntaje: ' + diffFileA.minTotal + '–' + diffFileA.maxTotal + ' → ' + diffFileB.minTotal + '–' + diffFileB.maxTotal);
+  }
+  if (diffFileA.umbral1 !== diffFileB.umbral1 || diffFileA.umbral2 !== diffFileB.umbral2) {
+    paramChanges.push('Umbrales de clasificación: ' + diffFileA.umbral1 + ' / ' + diffFileA.umbral2 + ' → ' + diffFileB.umbral1 + ' / ' + diffFileB.umbral2);
+  }
+  document.getElementById('diffParamChanges').innerHTML = paramChanges.length
+    ? paramChanges.map(p => '<div>⚠ ' + p + '</div>').join('')
+    : '<div>Sin cambios en el rango teórico ni en los umbrales de clasificación.</div>';
+
+  const tbody = document.getElementById('diffTableBody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--ink-soft);">Sin diferencias — ambos archivos tienen exactamente las mismas ponderaciones.</td></tr>';
+  } else {
+    const fmt = (v) => v === null ? '—' : v.toFixed(2);
+    tbody.innerHTML = rows.map(r => {
+      const tipoColor = r.tipo === 'AGREGADO' ? 'var(--bajo)' : r.tipo === 'ELIMINADO' ? 'var(--alto)' : 'var(--medio)';
+      const deltaFmt = (r.delta > 0 ? '+' : '') + r.delta.toFixed(2);
+      return '<tr><td style="color:' + tipoColor + '; font-weight:700;">' + r.tipo + '</td><td>' + r.qid + ' · ' + QUESTION_LABELS[r.qid] + '</td><td>' + r.respuesta + '</td><td class="num">' + fmt(r.pondA) + '</td><td class="num">' + fmt(r.pondB) + '</td><td class="num">' + fmt(r.puntA) + '</td><td class="num">' + fmt(r.puntB) + '</td><td class="num">' + deltaFmt + '</td></tr>';
+    }).join('');
+  }
+
+  document.getElementById('diffResults').style.display = 'block';
+}
+
+document.getElementById('fileInputA').addEventListener('change', (e) => handleDiffFile(e.target.files[0], 'A'));
+document.getElementById('fileInputB').addEventListener('change', (e) => handleDiffFile(e.target.files[0], 'B'));
+
+['A', 'B'].forEach(slot => {
+  const dz = document.getElementById('dropzone' + slot);
+  ['dragenter', 'dragover'].forEach(evt => dz.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); dz.classList.add('drag'); }));
+  ['dragleave', 'drop'].forEach(evt => dz.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); dz.classList.remove('drag'); }));
+  dz.addEventListener('drop', (e) => { const file = e.dataTransfer.files && e.dataTransfer.files[0]; handleDiffFile(file, slot); });
+});
+
+render();
+initManualForm();
+initStressTab();
+initAnalysisTab();
+</script>
+</body>
+</html>

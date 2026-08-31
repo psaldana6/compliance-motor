@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema de Monitoreo y Cumplimiento PLAFT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1c1d1f;
+    --ink-soft:#4a4c50;
+    --paper:#f6f4ef;
+    --panel:#ffffff;
+    --line:#dcd8cf;
+    --maroon:#7a1f2b;
+    --maroon-deep:#5c1620;
+    --stat-bg:#f8f6f2;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter', system-ui, sans-serif;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{
+    max-width:760px;
+    margin:0 auto;
+    padding:72px 28px 96px;
+  }
+  header{
+    border-bottom:1px solid var(--line);
+    padding-bottom:32px;
+    margin-bottom:40px;
+  }
+  .kicker{
+    font-size:14px;
+    color:var(--maroon);
+    font-weight:600;
+    margin:0 0 10px;
+  }
+  h1{
+    font-family:'Source Serif 4', Georgia, serif;
+    font-weight:700;
+    font-size:clamp(30px, 4.2vw, 42px);
+    line-height:1.15;
+    margin:0 0 12px;
+    color:var(--ink);
+  }
+  .subtitle{
+    font-family:'Source Serif 4', Georgia, serif;
+    font-style:italic;
+    font-weight:400;
+    font-size:19px;
+    color:var(--ink-soft);
+    margin:0;
+    max-width:60ch;
+  }
+  section{margin-bottom:36px;}
+  .section-head{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:12px;
+    flex-wrap:wrap;
+  }
+  h2{
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color:var(--maroon);
+    font-weight:600;
+    margin:0;
+  }
+  .as-of{
+    font-size:12.5px;
+    color:#9a9b9e;
+  }
+  p{
+    font-size:16px;
+    color:var(--ink);
+    margin:0 0 14px;
+    max-width:66ch;
+  }
+  .dashboards{
+    display:flex;
+    flex-direction:column;
+    gap:0;
+    border:1px solid var(--line);
+    border-radius:4px;
+    overflow:hidden;
+    background:var(--panel);
+  }
+  .dash{
+    padding:20px 22px;
+    border-bottom:1px solid var(--line);
+  }
+  .dash:last-child{border-bottom:none;}
+  .dash-name{
+    font-weight:600;
+    font-size:15px;
+    margin:0 0 4px;
+    color:var(--ink);
+  }
+  .dash-desc{
+    font-size:14.5px;
+    color:var(--ink-soft);
+    margin:0 0 14px;
+  }
+  .stats{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .stat{
+    background:var(--stat-bg);
+    border:1px solid var(--line);
+    border-radius:3px;
+    padding:9px 14px;
+    min-width:110px;
+  }
+  .stat-value{
+    font-family:'Source Serif 4', Georgia, serif;
+    font-weight:700;
+    font-size:20px;
+    color:var(--ink);
+    line-height:1.1;
+  }
+  .stat-label{
+    font-size:11.5px;
+    color:var(--ink-soft);
+    margin-top:3px;
+  }
+  ul.notes{
+    margin:0;
+    padding-left:18px;
+  }
+  ul.notes li{
+    font-size:15px;
+    color:var(--ink-soft);
+    margin-bottom:8px;
+  }
+  .cta-block{
+    margin-top:48px;
+    padding-top:36px;
+    border-top:1px solid var(--line);
+    text-align:center;
+  }
+  .cta-label{
+    font-size:14.5px;
+    color:var(--ink-soft);
+    margin:0 0 18px;
+  }
+  .cta-button{
+    display:inline-flex;
+    align-items:center;
+    gap:10px;
+    background:var(--maroon);
+    color:#fff;
+    text-decoration:none;
+    font-weight:600;
+    font-size:16px;
+    padding:15px 32px;
+    border-radius:3px;
+    transition:background .15s ease;
+    border:none;
+    cursor:pointer;
+  }
+  .cta-button:hover{background:var(--maroon-deep);}
+  .cta-button:focus-visible{
+    outline:3px solid var(--maroon-deep);
+    outline-offset:3px;
+  }
+  .cta-sub{
+    font-size:13px;
+    color:#8a8b8e;
+    margin-top:14px;
+  }
+  .review-block{
+    margin-top:32px;
+    padding:20px 24px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:4px;
+    text-align:center;
+  }
+  .review-status{
+    font-size:14px;
+    color:var(--ink);
+    margin:0 0 4px;
+  }
+  .review-status strong{
+    color:var(--maroon);
+  }
+  .review-note{
+    font-size:12.5px;
+    color:#9a9b9e;
+    margin:0;
+    max-width:50ch;
+    margin-left:auto;
+    margin-right:auto;
+  }
+  footer{
+    margin-top:56px;
+    padding-top:20px;
+    border-top:1px solid var(--line);
+    font-size:12.5px;
+    color:#9a9b9e;
+  }
+  @media (max-width:520px){
+    .wrap{padding:48px 20px 72px;}
+    .stat{min-width:100px;}
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+
+    <header>
+      <p class="kicker">Cumplimiento — PLAFT</p>
+      <h1>Sistema de Monitoreo y Cumplimiento PLAFT</h1>
+      <p class="subtitle">Visión integrada de riesgo, detección, investigación y diligencia.</p>
+    </header>
+
+    <section>
+      <h2>Descripción general</h2>
+      <p>Este reporte presenta una visión consolidada del modelo de prevención de lavado de activos y financiamiento del terrorismo (PLAFT), integrando información sobre perfilamiento de riesgo, detección de alertas, procesos de investigación (DOF), gestión de KYC y evidencia documental asociada.</p>
+      <p>Su objetivo es proporcionar una herramienta de seguimiento operativo y normativo, que permita monitorear el funcionamiento del modelo, identificar oportunidades de mejora y disponer de información trazable para instancias de gestión interna, comités de cumplimiento y auditorías.</p>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>Estructura del reporte</h2>
+        <span class="as-of">Datos al 31-08-2026</span>
+      </div>
+
+      <div class="dashboards">
+
+        <div class="dash">
+          <p class="dash-name">01 — Gestión Integral de Alertas</p>
+          <p class="dash-desc">Volumen, estado y evolución temporal de las alertas generadas por los sistemas de monitoreo, permitiendo verificar la continuidad y cobertura del proceso de detección.</p>
+          <div class="stats">
+            <div class="stat"><div class="stat-value">6.612</div><div class="stat-label">Total alertas</div></div>
+            <div class="stat"><div class="stat-value">247</div><div class="stat-label">Pendientes</div></div>
+            <div class="stat"><div class="stat-value">6.365</div><div class="stat-label">Cerradas</div></div>
+          </div>
+        </div>
+
+        <div class="dash">
+          <p class="dash-name">02 — Gestión Operativa DOF</p>
+          <p class="dash-desc">Casos derivados a análisis, su estado (activos y cerrados) y la gestión asociada, evidenciando los procesos de investigación y revisión posterior a las alertas.</p>
+          <div class="stats">
+            <div class="stat"><div class="stat-value">1.058</div><div class="stat-label">Total DOF</div></div>
+            <div class="stat"><div class="stat-value">271</div><div class="stat-label">Activos</div></div>
+            <div class="stat"><div class="stat-value">787</div><div class="stat-label">Cerrados</div></div>
+          </div>
+        </div>
+
+        <div class="dash">
+          <p class="dash-name">03 — KYC / Perfilamiento</p>
+          <p class="dash-desc">Perfil de riesgo de los clientes, el estado de los procesos KYC y el cumplimiento de plazos definidos, apoyando la gestión basada en riesgo y el control operativo.</p>
+          <div class="stats">
+            <div class="stat"><div class="stat-value">18.281</div><div class="stat-label">Total KYC</div></div>
+            <div class="stat"><div class="stat-value">6.037</div><div class="stat-label">Activos</div></div>
+            <div class="stat"><div class="stat-value">1.457</div><div class="stat-label">Fuera de plazo (SLA 365)</div></div>
+          </div>
+        </div>
+
+        <div class="dash">
+          <p class="dash-name">04 — Evidencia y Trazabilidad PLAFT</p>
+          <p class="dash-desc">Visión transversal del modelo, combinando riesgo, detección, gestión, diligencia y evidencia documental, de acuerdo con los principios de la Circular 62 y la Ley 20.393.</p>
+          <div class="stats">
+            <div class="stat"><div class="stat-value">61.903</div><div class="stat-label">Perfil bajo</div></div>
+            <div class="stat"><div class="stat-value">3.364</div><div class="stat-label">Perfil medio</div></div>
+            <div class="stat"><div class="stat-value">305</div><div class="stat-label">Perfil alto</div></div>
+            <div class="stat"><div class="stat-value">90</div><div class="stat-label">No clasificado</div></div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <section>
+      <h2>Notas metodológicas</h2>
+      <ul class="notes">
+        <li>La información se presenta a nivel agregado, conforme a la estructura y disponibilidad de las fuentes de datos.</li>
+        <li>Los indicadores reflejan el estado a la fecha de actualización del reporte.</li>
+        <li>La trazabilidad se expone hasta donde la arquitectura de los sistemas lo permite, sin inferir relaciones no soportadas por los datos.</li>
+      </ul>
+    </section>
+
+    <div class="cta-block">
+      <p class="cta-label">El detalle interactivo y en tiempo real de cada dashboard se encuentra disponible en Fabric.</p>
+      <a class="cta-button" href="https://app.fabric.microsoft.com/groups/3ae53f2a-604e-4826-b04a-df25ccd56d19/reports/1b05ad60-a856-416d-af86-28e206da4abc/e86682de700cbc3a8389?experience=fabric-developer" target="_blank" rel="noopener">
+        Abrir reporte en Fabric
+      </a>
+      <p class="cta-sub">Se requiere sesión activa con tu cuenta corporativa.</p>
+
+      <div class="review-block">
+        <p class="review-status">El modelo semántico se actualiza automáticamente <strong>todos los días a las 14:00 hrs</strong></p>
+        <p class="review-note">Los indicadores de esta página son una foto fija al 31-08-2026 y no se conectan en vivo. Para ver la información al día, ingresa directamente a Fabric con el botón de arriba — ahí los datos ya reflejan el ciclo de actualización diario.</p>
+      </div>
+    </div>
+
+    <footer>
+      Compliance PLAFT · Acceso interno
+    </footer>
+
+  </div>
+
+</body>
+</html>
